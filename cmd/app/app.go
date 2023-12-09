@@ -12,7 +12,7 @@ import (
 	_ "github.com/lib/pq"
 	"google.golang.org/grpc"
 
-	"github.com/furkanakcadogan/rate_limit/internal/proto" // Update this import path
+	"github.com/furkanakcadogan/rate-limit/proto" // Update this import path
 )
 
 const grpcServerAddress = "localhost:50051" // Change this to your gRPC server address
@@ -169,15 +169,29 @@ func main() {
 
 	// Example usage of isRequestAllowed function
 	allowed, remainingTokens, err := isRequestAllowed(redisClient, pgDB, clientID, 1)
-
+	_ = allowed
+	_ = remainingTokens
 	if err != nil {
 		log.Printf("Error checking request allowance: %v\n", err)
 		return
 	}
 
-	if allowed {
-		log.Printf("%s: Request allowed. Remaining tokens: %d\n", clientID, remainingTokens)
+	// Use gRPC client to send a request to the server
+	grpcRequest := &proto.RateLimitRequest{
+		ClientId:       clientID,
+		TokensRequired: 1, // You can adjust this based on your use case
+	}
+
+	grpcResponse, err := grpcClient.CheckRateLimit(context.Background(), grpcRequest)
+	if err != nil {
+		log.Printf("Error sending gRPC request: %v\n", err)
+		return
+	}
+
+	// Process the gRPC response
+	if grpcResponse.GetAllowed() {
+		log.Printf("%s: gRPC Request allowed. Remaining tokens: %d\n", clientID, grpcResponse.GetRemainingTokens())
 	} else {
-		log.Printf("%s: Request rejected. Rate limit exceeded\n", clientID)
+		log.Printf("%s: gRPC Request rejected. Rate limit exceeded\n", clientID)
 	}
 }
