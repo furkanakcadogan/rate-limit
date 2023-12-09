@@ -7,19 +7,21 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"time"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"google.golang.org/grpc"
 
 	"github.com/furkanakcadogan/rate-limit/proto" // Update this import path
 )
 
-const (
-	grpcServerAddress = "localhost:50051"
-	redisAddress      = "localhost:6379"
-	pgConnStr         = "user=root password=secret dbname=rate_limiting sslmode=disable"
+var (
+	grpcServerAddress string
+	redisAddress      string
+	pgConnStr         string
 )
 
 // RateLimitServer is the server that provides rate limiting.
@@ -210,6 +212,17 @@ func newGrpcClient(address string) (proto.RateLimitServiceClient, error) {
 }
 
 func main() {
+	// .env dosyasının bir üst dizininde olduğunu belirtin
+	envFileLocation := "../../app.env"
+
+	// .env dosyasını yükle
+	if err := godotenv.Load(envFileLocation); err != nil {
+		log.Fatalf("Failed to load .env file: %v", err)
+	}
+
+	grpcServerAddress = os.Getenv("GRPC_SERVER_ADDRESS")
+	redisAddress = os.Getenv("REDIS_ADDRESS")
+	pgConnStr = os.Getenv("DB_SOURCE")
 	redisClient := redis.NewClient(&redis.Options{
 		Addr: redisAddress,
 		DB:   0,

@@ -1,18 +1,17 @@
 # Resmi Go imajını kullanın
-FROM golang:1.17
+#docker build -t rate-limiter-app .
+#docker run rate-limiter-app
+
+FROM golang:1.21
 
 # Çalışma dizini oluşturun
 WORKDIR /app
 
 # Uygulama dosyalarını kopyalayın
-COPY cmd/app/app.go /app/
+COPY . /app/
 
 # Uygulamayı derleyin
-RUN go build app.go
-
-# Eğer uygulama bağımlılıkları varsa onları ekleyin (örneğin go mod dosyası)
-COPY go.mod go.sum /app/
-RUN go mod download
+RUN go build cmd/app/app.go
 
 # Uygulama çalıştırılacak komut
 CMD ["./app"]

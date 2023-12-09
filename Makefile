@@ -3,14 +3,17 @@ postgres:
 createdb:
 	docker exec -it client_rate_limiting createdb --username=root --owner=root rate_limiting
 
+grpc:
+	docker run rate-limiter-app
+
 dropdb:
-	docker exec -it postgres12 dropdb --username=root simple_bank
+	docker exec -it postgres12 dropdb --username=root rate_limiting
 
 migrateup:
-	migrate -path db/migration -database "postgresql://root:secret@localhost:5432/simple_bank?sslmode=disable" -verbose up 
+	migrate -path db/migration -database "postgresql://root:secret@localhost:5432/rate_limiting?sslmode=disable" -verbose up 
 
 migratedown:
-	migrate -path db/migration -database "postgresql://root:secret@localhost:5432/simple_bank?sslmode=disable" -verbose down
+	migrate -path db/migration -database "postgresql://root:secret@localhost:5432/rate_limiting?sslmode=disable" -verbose down
 
 sqlc:
 	sqlc generate
