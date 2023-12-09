@@ -188,29 +188,6 @@ func isRequestAllowed(redisClient *redis.Client, db *sql.DB, clientID string, to
 	return allowed, remainingTokens, nil
 }
 
-func IsRequestAllowed_gRPC(grpcClient proto.RateLimitServiceClient, clientID string, tokensRequired int64) (bool, int64, error) {
-	grpcRequest := &proto.RateLimitRequest{
-		ClientId:       clientID,
-		TokensRequired: tokensRequired,
-	}
-
-	grpcResponse, err := grpcClient.CheckRateLimit(context.Background(), grpcRequest)
-	if err != nil {
-		return false, 0, fmt.Errorf("error sending gRPC request: %v", err)
-	}
-
-	return grpcResponse.GetAllowed(), grpcResponse.GetRemainingTokens(), nil
-}
-
-func newGrpcClient(address string) (proto.RateLimitServiceClient, error) {
-	conn, err := grpc.Dial(address, grpc.WithInsecure())
-	if err != nil {
-		return nil, fmt.Errorf("error connecting to gRPC server: %v", err)
-	}
-
-	return proto.NewRateLimitServiceClient(conn), nil
-}
-
 func main() {
 	// .env dosyasının bir üst dizininde olduğunu belirtin
 	envFileLocation := "../../app.env"
