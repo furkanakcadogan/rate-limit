@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"context"
@@ -120,6 +120,21 @@ func isRequestAllowed(redisClient *redis.Client, db *sql.DB, clientID string, to
 
 	return allowed, remainingTokens, nil
 }
+func IsRequestAllowed_gRPC(grpcClient proto.RateLimitServiceClient, clientID string, tokensRequired int64) (bool, int64, error) {
+	// Use gRPC client to send a request to the server
+	grpcRequest := &proto.RateLimitRequest{
+		ClientId:       clientID,
+		TokensRequired: tokensRequired,
+	}
+
+	grpcResponse, err := grpcClient.CheckRateLimit(context.Background(), grpcRequest)
+	if err != nil {
+		return false, 0, fmt.Errorf("error sending gRPC request: %v", err)
+	}
+
+	// Process the gRPC response
+	return grpcResponse.GetAllowed(), grpcResponse.GetRemainingTokens(), nil
+}
 
 func main() {
 	// Docker setup
@@ -167,30 +182,16 @@ func main() {
 	// Create a gRPC client
 	grpcClient := proto.NewRateLimitServiceClient(conn)
 
-	// Example usage of isRequestAllowed function
-	allowed, remainingTokens, err := isRequestAllowed(redisClient, pgDB, clientID, 1)
-	_ = allowed
-	_ = remainingTokens
+	// Example usage of IsRequestAllowed_gRPC function
+	grpcRequestAllowed, grpcRemainingTokens, err := IsRequestAllowed_gRPC(grpcClient, clientID, 1)
 	if err != nil {
-		log.Printf("Error checking request allowance: %v\n", err)
+		log.Printf("Error checking gRPC request allowance: %v\n", err)
 		return
 	}
 
-	// Use gRPC client to send a request to the server
-	grpcRequest := &proto.RateLimitRequest{
-		ClientId:       clientID,
-		TokensRequired: 1, // You can adjust this based on your use case
-	}
-
-	grpcResponse, err := grpcClient.CheckRateLimit(context.Background(), grpcRequest)
-	if err != nil {
-		log.Printf("Error sending gRPC request: %v\n", err)
-		return
-	}
-
-	// Process the gRPC response
-	if grpcResponse.GetAllowed() {
-		log.Printf("%s: gRPC Request allowed. Remaining tokens: %d\n", clientID, grpcResponse.GetRemainingTokens())
+	// Process the IsRequestAllowed_gRPC response
+	if grpcRequestAllowed {
+		log.Printf("%s: gRPC Request allowed. Remaining tokens: %d\n", clientID, grpcRemainingTokens)
 	} else {
 		log.Printf("%s: gRPC Request rejected. Rate limit exceeded\n", clientID)
 	}

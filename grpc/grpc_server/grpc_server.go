@@ -1,4 +1,4 @@
-package grpc
+package main
 
 import (
 	"context"
@@ -46,4 +46,8 @@ func grpc_server() {
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve: %v", err)
 	}
+}
+func main() {
+	// Call the grpc_client function when the program starts
+	grpc_server()
 }
