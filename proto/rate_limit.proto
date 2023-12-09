@@ -1,15 +1,22 @@
 // proto/your_service.proto
-//protoc --go_out=paths=source_relative:. --go-grpc_out=paths=source_relative:. rate_limit.proto
+//protoc --go_out=paths=source_relative:. --go-grpc_out=paths=source_relative:. proto/rate_limit.proto
+//protoc --go_out=plugins=grpc:. proto/rate_limit.proto
+
 syntax = "proto3";
+package proto;
 
-package cmd;
+option go_package = "github.com/furkanakcadogan/rate-limit/internal/proto";
 
-option go_package = "rate-limit/app/cmd";
-
-message Message {
-  string body = 1;
+service RateLimitService {
+  rpc CheckRateLimit (RateLimitRequest) returns (RateLimitResponse);
 }
 
-service ChatService {
-  rpc SayHello(Message) returns (Message) {}
+message RateLimitRequest {
+  string clientId = 1;
+  int64 tokensRequired = 2;
+}
+
+message RateLimitResponse {
+  bool allowed = 1;
+  int64 remainingTokens = 2;
 }

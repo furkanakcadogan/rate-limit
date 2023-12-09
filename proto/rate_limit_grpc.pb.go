@@ -2,9 +2,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.2.0
 // - protoc             v3.20.3
-// source: rate_limit.proto
+// source: proto/rate_limit.proto
 
-package cmd
+package proto
 
 import (
 	context "context"
@@ -18,88 +18,88 @@ import (
 // Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
-// ChatServiceClient is the client API for ChatService service.
+// RateLimitServiceClient is the client API for RateLimitService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type ChatServiceClient interface {
-	SayHello(ctx context.Context, in *Message, opts ...grpc.CallOption) (*Message, error)
+type RateLimitServiceClient interface {
+	CheckRateLimit(ctx context.Context, in *RateLimitRequest, opts ...grpc.CallOption) (*RateLimitResponse, error)
 }
 
-type chatServiceClient struct {
+type rateLimitServiceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewChatServiceClient(cc grpc.ClientConnInterface) ChatServiceClient {
-	return &chatServiceClient{cc}
+func NewRateLimitServiceClient(cc grpc.ClientConnInterface) RateLimitServiceClient {
+	return &rateLimitServiceClient{cc}
 }
 
-func (c *chatServiceClient) SayHello(ctx context.Context, in *Message, opts ...grpc.CallOption) (*Message, error) {
-	out := new(Message)
-	err := c.cc.Invoke(ctx, "/main.ChatService/SayHello", in, out, opts...)
+func (c *rateLimitServiceClient) CheckRateLimit(ctx context.Context, in *RateLimitRequest, opts ...grpc.CallOption) (*RateLimitResponse, error) {
+	out := new(RateLimitResponse)
+	err := c.cc.Invoke(ctx, "/proto.RateLimitService/CheckRateLimit", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// ChatServiceServer is the server API for ChatService service.
-// All implementations must embed UnimplementedChatServiceServer
+// RateLimitServiceServer is the server API for RateLimitService service.
+// All implementations must embed UnimplementedRateLimitServiceServer
 // for forward compatibility
-type ChatServiceServer interface {
-	SayHello(context.Context, *Message) (*Message, error)
-	mustEmbedUnimplementedChatServiceServer()
+type RateLimitServiceServer interface {
+	CheckRateLimit(context.Context, *RateLimitRequest) (*RateLimitResponse, error)
+	mustEmbedUnimplementedRateLimitServiceServer()
 }
 
-// UnimplementedChatServiceServer must be embedded to have forward compatible implementations.
-type UnimplementedChatServiceServer struct {
+// UnimplementedRateLimitServiceServer must be embedded to have forward compatible implementations.
+type UnimplementedRateLimitServiceServer struct {
 }
 
-func (UnimplementedChatServiceServer) SayHello(context.Context, *Message) (*Message, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SayHello not implemented")
+func (UnimplementedRateLimitServiceServer) CheckRateLimit(context.Context, *RateLimitRequest) (*RateLimitResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CheckRateLimit not implemented")
 }
-func (UnimplementedChatServiceServer) mustEmbedUnimplementedChatServiceServer() {}
+func (UnimplementedRateLimitServiceServer) mustEmbedUnimplementedRateLimitServiceServer() {}
 
-// UnsafeChatServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to ChatServiceServer will
+// UnsafeRateLimitServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to RateLimitServiceServer will
 // result in compilation errors.
-type UnsafeChatServiceServer interface {
-	mustEmbedUnimplementedChatServiceServer()
+type UnsafeRateLimitServiceServer interface {
+	mustEmbedUnimplementedRateLimitServiceServer()
 }
 
-func RegisterChatServiceServer(s grpc.ServiceRegistrar, srv ChatServiceServer) {
-	s.RegisterService(&ChatService_ServiceDesc, srv)
+func RegisterRateLimitServiceServer(s grpc.ServiceRegistrar, srv RateLimitServiceServer) {
+	s.RegisterService(&RateLimitService_ServiceDesc, srv)
 }
 
-func _ChatService_SayHello_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Message)
+func _RateLimitService_CheckRateLimit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RateLimitRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ChatServiceServer).SayHello(ctx, in)
+		return srv.(RateLimitServiceServer).CheckRateLimit(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/main.ChatService/SayHello",
+		FullMethod: "/proto.RateLimitService/CheckRateLimit",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ChatServiceServer).SayHello(ctx, req.(*Message))
+		return srv.(RateLimitServiceServer).CheckRateLimit(ctx, req.(*RateLimitRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// ChatService_ServiceDesc is the grpc.ServiceDesc for ChatService service.
+// RateLimitService_ServiceDesc is the grpc.ServiceDesc for RateLimitService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var ChatService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "main.ChatService",
-	HandlerType: (*ChatServiceServer)(nil),
+var RateLimitService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "proto.RateLimitService",
+	HandlerType: (*RateLimitServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "SayHello",
-			Handler:    _ChatService_SayHello_Handler,
+			MethodName: "CheckRateLimit",
+			Handler:    _RateLimitService_CheckRateLimit_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "rate_limit.proto",
+	Metadata: "proto/rate_limit.proto",
 }

@@ -10,7 +10,12 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	_ "github.com/lib/pq"
+	"google.golang.org/grpc"
+
+	"github.com/furkanakcadogan/rate_limit/internal/proto" // Update this import path
 )
+
+const grpcServerAddress = "localhost:50051" // Change this to your gRPC server address
 
 func initializeRateLimiter(redisClient *redis.Client, key string, capacity, rate int64, interval time.Duration) {
 	ctx := context.Background()
@@ -151,6 +156,16 @@ func main() {
 	}
 
 	clientID := "key1"
+
+	// Initialize gRPC connection
+	conn, err := grpc.Dial(grpcServerAddress, grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("Failed to connect to gRPC server: %v", err)
+	}
+	defer conn.Close()
+
+	// Create a gRPC client
+	grpcClient := proto.NewRateLimitServiceClient(conn)
 
 	// Example usage of isRequestAllowed function
 	allowed, remainingTokens, err := isRequestAllowed(redisClient, pgDB, clientID, 1)
