@@ -1,0 +1,15 @@
+// proto/your_service.proto
+//protoc --go_out=paths=source_relative:. --go-grpc_out=paths=source_relative:. rate_limit.proto
+syntax = "proto3";
+
+package cmd;
+
+option go_package = "rate-limit/app/cmd";
+
+message Message {
+  string body = 1;
+}
+
+service ChatService {
+  rpc SayHello(Message) returns (Message) {}
+}

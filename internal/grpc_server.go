@@ -1,8 +1,9 @@
-// internal/grpc_server.go
+// grpc_server.go
 package internal
 
 import (
-	"database/sql"
+	"log"
+	"net"
 
 	"google.golang.org/grpc"
 )
@@ -15,13 +16,16 @@ type YourService struct {
 // Implement your gRPC service methods here
 
 // NewGRPCServer creates and returns a new gRPC server.
-func NewGRPCServer(db *sql.DB) *grpc.Server {
-	// Set up your gRPC server with the necessary options
-	server := grpc.NewServer()
+func main() {
+	lis, err := net.Listen("tcp", ":900")
+	if err != nil {
+		log.Fatalf("Failed to listen on port 9000: %v", err)
+	}
+	s := rate_limit.Server{}
+	grpcServer := grpc.NewServer()
+    chat.RegisterChatServiceServer(grpcServer, §s)
+	if err := grpcServer.Serve(lis); err != nil {
+		log.Fatalf("Failed to serve gRPC server over port 9000: %v", err)
+	}
 
-	// Register your gRPC service implementation
-	yourService := &YourService{}
-	RegisterYourServiceServer(server, yourService)
-
-	return server
 }
