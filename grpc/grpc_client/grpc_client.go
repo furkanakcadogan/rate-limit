@@ -1,35 +1,42 @@
-package grpc_client
+package main
 
 import (
+	"context"
 	"log"
+	"time"
 
-	"github.com/furkanakcadogan/rate-limit/cmd/app" // Import the app package
-	"github.com/furkanakcadogan/rate-limit/proto"
-
+	"github.com/furkanakcadogan/rate-limit/proto" // Bu import yolu projenize göre güncellenmelidir.
 	"google.golang.org/grpc"
 )
 
-func grpc_client() {
-	// Create a gRPC connection to the server
-	conn, err := grpc.Dial("localhost:50051", grpc.WithInsecure())
+const grpcServerAddress = "localhost:50051"
+
+func main() {
+	conn, err := grpc.Dial(grpcServerAddress, grpc.WithInsecure())
 	if err != nil {
-		log.Fatalf("Failed to connect: %v", err)
+		log.Fatalf("Failed to connect to gRPC server: %v", err)
 	}
 	defer conn.Close()
 
-	// Create a gRPC client
 	client := proto.NewRateLimitServiceClient(conn)
 
-	// Call the IsRequestAllowed function in cmd/app/app.go
-	allowed, remainingTokens, err := app.IsRequestAllowed(client, "someClientId", 5)
+	clientID := "key1"         // Burada test etmek istediğiniz client ID'yi kullanın.
+	tokensRequired := int64(1) // Gerekli token sayısı.
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	response, err := client.CheckRateLimit(ctx, &proto.RateLimitRequest{
+		ClientId:       clientID,
+		TokensRequired: tokensRequired,
+	})
 	if err != nil {
-		log.Fatalf("Error checking request allowance: %v", err)
+		log.Fatalf("Error when calling CheckRateLimit: %v", err)
 	}
 
-	// Print the response
-	if allowed {
-		log.Printf("gRPC Request allowed. Remaining tokens: %d\n", remainingTokens)
+	if response.Allowed {
+		log.Printf("Response to clientId: %s, allowed: %t, remainingTokens: %d\n", clientID, response.Allowed, response.RemainingTokens)
 	} else {
-		log.Printf("gRPC Request rejected. Rate limit exceeded\n")
+		log.Printf("Response to clientId: %s, Request Rejected.", clientID)
 	}
 }

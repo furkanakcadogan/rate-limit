@@ -1,4 +1,4 @@
-package app
+package main
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -15,24 +16,78 @@ import (
 	"github.com/furkanakcadogan/rate-limit/proto" // Update this import path
 )
 
-const grpcServerAddress = "localhost:50051" // Change this to your gRPC server address
+const (
+	grpcServerAddress = "localhost:50051"
+	redisAddress      = "localhost:6379"
+	pgConnStr         = "user=root password=secret dbname=rate_limiting sslmode=disable"
+)
+
+// RateLimitServer is the server that provides rate limiting.
+type RateLimitServer struct {
+	proto.UnimplementedRateLimitServiceServer
+	redisClient *redis.Client
+	db          *sql.DB
+}
+
+// NewRateLimitServer creates a new RateLimitServer.
+func NewRateLimitServer(redisClient *redis.Client, db *sql.DB) *RateLimitServer {
+	return &RateLimitServer{
+		redisClient: redisClient,
+		db:          db,
+	}
+}
+
+// CheckRateLimit implements the RateLimitService interface.
+func (s *RateLimitServer) CheckRateLimit(ctx context.Context, req *proto.RateLimitRequest) (*proto.RateLimitResponse, error) {
+	clientID := req.ClientId
+	tokensRequired := req.TokensRequired
+
+	log.Printf("CheckRateLimit called with clientId: %s, tokensRequired: %d\n", clientID, tokensRequired)
+
+	allowed, remainingTokens, err := isRequestAllowed(s.redisClient, s.db, clientID, tokensRequired)
+	if err != nil {
+		log.Printf("Error in isRequestAllowed for clientId: %s, error: %v\n", clientID, err)
+		return nil, err
+	}
+
+	if allowed {
+		log.Printf("Response to clientId: %s, allowed: %t, remainingTokens: %d\n", clientID, allowed, remainingTokens)
+	} else {
+		log.Printf("Response to clientId: %s, Request Rejected.", clientID)
+	}
+
+	return &proto.RateLimitResponse{
+		Allowed:         allowed,
+		RemainingTokens: remainingTokens,
+	}, nil
+}
 
 func initializeRateLimiter(redisClient *redis.Client, key string, capacity, rate int64, interval time.Duration) {
 	ctx := context.Background()
 
-	// Check if the key already exists in Redis
-	if exists, _ := redisClient.Exists(ctx, key).Result(); exists == 0 {
-		// Key doesn't exist, initialize the rate limiter
-		result := redisClient.SetEX(ctx, key, capacity, interval)
-		log.Printf("SetEX result: %v\n", result)
+	if exists, err := redisClient.Exists(ctx, key).Result(); err != nil || exists == 0 {
+		if err != nil {
+			log.Printf("Error checking if key %s exists in Redis: %v\n", key, err)
+		}
+		_, err := redisClient.SetEX(ctx, key, capacity, interval).Result()
+		if err != nil {
+			log.Printf("Error initializing rate limiter in Redis for key %s: %v\n", key, err)
+		} else {
+			log.Printf("Initialized rate limiter in Redis for key %s with capacity %d\n", key, capacity)
+		}
 	}
 
 	lastRefillKey := fmt.Sprintf("%s_last_refill", key)
-	// Check if lastRefillKey already exists in Redis
-	if exists, _ := redisClient.Exists(ctx, lastRefillKey).Result(); exists == 0 {
-		// lastRefillKey doesn't exist, set the current time
-		result := redisClient.Set(ctx, lastRefillKey, time.Now().Unix(), 0)
-		log.Printf("Set result: %v\n", result)
+	if exists, err := redisClient.Exists(ctx, lastRefillKey).Result(); err != nil || exists == 0 {
+		if err != nil {
+			log.Printf("Error checking if last refill key %s exists in Redis: %v\n", lastRefillKey, err)
+		}
+		_, err := redisClient.Set(ctx, lastRefillKey, time.Now().Unix(), 0).Result()
+		if err != nil {
+			log.Printf("Error setting last refill time in Redis for key %s: %v\n", lastRefillKey, err)
+		} else {
+			log.Printf("Set last refill time in Redis for key %s\n", lastRefillKey)
+		}
 	}
 }
 
@@ -40,38 +95,49 @@ func refillTokens(redisClient *redis.Client, key, lastRefillKey string, capacity
 	ctx := context.Background()
 
 	currentTime := time.Now().Unix()
-	lastRefill, _ := redisClient.Get(ctx, lastRefillKey).Int64()
+	lastRefill, err := redisClient.Get(ctx, lastRefillKey).Int64()
+	if err != nil {
+		log.Printf("Error getting last refill time from Redis: %v\n", err)
+		return 0
+	}
 
-	currentTokens, _ := redisClient.Get(ctx, key).Int64()
+	currentTokens, err := redisClient.Get(ctx, key).Int64()
+	if err != nil {
+		log.Printf("Error getting current tokens from Redis: %v\n", err)
+		return 0
+	}
 
 	timePassed := currentTime - lastRefill
 	intervalsPassed := timePassed / int64(interval.Seconds())
-
 	newTokens := min(capacity, currentTokens+intervalsPassed*rate)
 
-	result := redisClient.Set(ctx, lastRefillKey, lastRefill+intervalsPassed*int64(interval.Seconds()), 0)
+	_, err = redisClient.Set(ctx, lastRefillKey, currentTime, 0).Result()
+	if err != nil {
+		log.Printf("Error updating last refill time in Redis: %v\n", err)
+	}
 
-	//log.Printf("Set result: %v\n", result)
+	_, err = redisClient.Set(ctx, key, newTokens, 0).Result()
+	if err != nil {
+		log.Printf("Error updating token count in Redis: %v\n", err)
+	}
 
-	result = redisClient.Set(ctx, key, newTokens, 0)
-	//log.Printf("Set result: %v\n", result)
-	_ = result
 	return newTokens
 }
 
 func allowRequest(redisClient *redis.Client, key, lastRefillKey string, tokensRequired, capacity, rate int64, interval time.Duration) (bool, int64) {
 	ctx := context.Background()
 
-	if exists, _ := redisClient.Exists(ctx, key).Result(); exists == 0 {
+	if exists, err := redisClient.Exists(ctx, key).Result(); err != nil || exists == 0 {
 		initializeRateLimiter(redisClient, key, capacity, rate, interval)
 	}
 
 	currentTokens := refillTokens(redisClient, key, lastRefillKey, capacity, rate, interval)
 
 	if currentTokens >= tokensRequired {
-		result := redisClient.DecrBy(ctx, key, tokensRequired)
-		_ = result
-		//log.Printf("DecrBy result: %v\n", result)
+		_, err := redisClient.DecrBy(ctx, key, tokensRequired).Result()
+		if err != nil {
+			log.Printf("Error decrementing tokens in Redis: %v\n", err)
+		}
 		return true, currentTokens - tokensRequired
 	} else {
 		return false, currentTokens
@@ -85,43 +151,42 @@ func min(a, b int64) int64 {
 	return b
 }
 
-func fetchRateLimitConfigFromPostgres(db *sql.DB, clientID string) (int, time.Duration, error) {
+func fetchRateLimitConfigFromPostgres(db *sql.DB, clientID string) (int64, time.Duration, error) {
 	query := "SELECT rate_limit, refill_interval FROM rate_limits WHERE clientid = $1 LIMIT 1"
 	row := db.QueryRow(query, clientID)
 
-	var rateLimit int
-	var refillInterval time.Duration
-
+	var rateLimit int64
+	var refillInterval int
 	err := row.Scan(&rateLimit, &refillInterval)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return 0, 0, fmt.Errorf("clientid %s not found", clientID)
+			log.Printf("client ID %s not found in database\n", clientID)
+			return 0, 0, fmt.Errorf("client ID %s not found", clientID)
 		}
+		log.Printf("error fetching data from PostgreSQL for client ID %s: %v\n", clientID, err)
 		return 0, 0, fmt.Errorf("error fetching data from PostgreSQL: %v", err)
 	}
 
-	return rateLimit, refillInterval, nil
+	log.Printf("Fetched rateLimit: %d, refillInterval: %d for client ID %s\n", rateLimit, refillInterval, clientID)
+	return rateLimit, time.Duration(refillInterval) * time.Second, nil
 }
 
 func isRequestAllowed(redisClient *redis.Client, db *sql.DB, clientID string, tokensRequired int64) (bool, int64, error) {
 	lastRefillKey := fmt.Sprintf("%s_last_refill", clientID)
 
-	// Fetch rate limit configuration from PostgreSQL
 	rateLimit, refillInterval, err := fetchRateLimitConfigFromPostgres(db, clientID)
 	if err != nil {
-		return false, 0, fmt.Errorf("error fetching rate limit configuration from PostgreSQL: %v", err)
+		return false, 0, err
 	}
 
-	// Ensure the rate limit is initialized in Redis
-	initializeRateLimiter(redisClient, clientID, int64(rateLimit), int64(rateLimit), refillInterval*time.Second)
+	initializeRateLimiter(redisClient, clientID, rateLimit, rateLimit, refillInterval)
 
-	// Check if the request is allowed
-	allowed, remainingTokens := allowRequest(redisClient, clientID, lastRefillKey, tokensRequired, int64(rateLimit), int64(rateLimit), refillInterval*time.Second)
+	allowed, remainingTokens := allowRequest(redisClient, clientID, lastRefillKey, tokensRequired, rateLimit, rateLimit, refillInterval)
 
 	return allowed, remainingTokens, nil
 }
+
 func IsRequestAllowed_gRPC(grpcClient proto.RateLimitServiceClient, clientID string, tokensRequired int64) (bool, int64, error) {
-	// Use gRPC client to send a request to the server
 	grpcRequest := &proto.RateLimitRequest{
 		ClientId:       clientID,
 		TokensRequired: tokensRequired,
@@ -132,67 +197,45 @@ func IsRequestAllowed_gRPC(grpcClient proto.RateLimitServiceClient, clientID str
 		return false, 0, fmt.Errorf("error sending gRPC request: %v", err)
 	}
 
-	// Process the gRPC response
 	return grpcResponse.GetAllowed(), grpcResponse.GetRemainingTokens(), nil
 }
 
+func newGrpcClient(address string) (proto.RateLimitServiceClient, error) {
+	conn, err := grpc.Dial(address, grpc.WithInsecure())
+	if err != nil {
+		return nil, fmt.Errorf("error connecting to gRPC server: %v", err)
+	}
+
+	return proto.NewRateLimitServiceClient(conn), nil
+}
+
 func main() {
-	// Docker setup
 	redisClient := redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
+		Addr: redisAddress,
 		DB:   0,
 	})
-	defer func() {
-		err := redisClient.Close()
-		if err != nil {
-			log.Printf("Error closing Redis client: %v\n", err)
-		}
-	}()
+	defer redisClient.Close()
 
-	// PostgreSQL setup
-	pgConnStr := "user=root password=secret dbname=rate_limiting sslmode=disable"
-	pgDB, err := sql.Open("postgres", pgConnStr)
+	db, err := sql.Open("postgres", pgConnStr)
 	if err != nil {
-		log.Printf("Error opening PostgreSQL connection: %v\n", err)
-		return
+		log.Fatalf("Failed to open database: %v", err)
 	}
-	defer func() {
-		err := pgDB.Close()
-		if err != nil {
-			log.Printf("Error closing PostgreSQL connection: %v\n", err)
-		}
-	}()
+	defer db.Close()
 
-	// Check PostgreSQL connection
-	err = pgDB.Ping()
-	if err != nil {
-		log.Printf("Error pinging PostgreSQL: %v\n", err)
-		return
+	if err := db.Ping(); err != nil {
+		log.Fatalf("Failed to ping database: %v", err)
 	}
 
-	clientID := "key1"
-
-	// Initialize gRPC connection
-	conn, err := grpc.Dial(grpcServerAddress, grpc.WithInsecure())
+	lis, err := net.Listen("tcp", grpcServerAddress)
 	if err != nil {
-		log.Fatalf("Failed to connect to gRPC server: %v", err)
-	}
-	defer conn.Close()
-
-	// Create a gRPC client
-	grpcClient := proto.NewRateLimitServiceClient(conn)
-
-	// Example usage of IsRequestAllowed_gRPC function
-	grpcRequestAllowed, grpcRemainingTokens, err := IsRequestAllowed_gRPC(grpcClient, clientID, 1)
-	if err != nil {
-		log.Printf("Error checking gRPC request allowance: %v\n", err)
-		return
+		log.Fatalf("Failed to listen: %v", err)
 	}
 
-	// Process the IsRequestAllowed_gRPC response
-	if grpcRequestAllowed {
-		log.Printf("%s: gRPC Request allowed. Remaining tokens: %d\n", clientID, grpcRemainingTokens)
-	} else {
-		log.Printf("%s: gRPC Request rejected. Rate limit exceeded\n", clientID)
+	grpcServer := grpc.NewServer()
+	proto.RegisterRateLimitServiceServer(grpcServer, NewRateLimitServer(redisClient, db))
+
+	log.Printf("Starting gRPC server on %s", grpcServerAddress)
+	if err := grpcServer.Serve(lis); err != nil {
+		log.Fatalf("Failed to serve: %v", err)
 	}
 }
