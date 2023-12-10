@@ -1,4 +1,4 @@
-package db
+package sqlPrompt
 
 import (
 	"context"
@@ -9,10 +9,10 @@ import (
 	"os"
 	"testing"
 	"time"
-
+	"../db"
 	_ "github.com/jackc/pgx/v4"
 	_ "github.com/jackc/pgx/v4/stdlib"
-
+	"github.com/furkanakcadogan/rate_limiter/db"
 	_ "github.com/lib/pq"
 )
 
@@ -23,7 +23,7 @@ type CreateNewUserParams struct {
 	RefillInterval int32
 }
 
-var testQueries *Queries
+var testQueries db.*Queries
 
 func TestMain(m *testing.M) {
 	pgConnStr := "postgresql://root:secret@localhost:5432/ratelimitingdb?sslmode=disable"
@@ -32,7 +32,8 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("Veritabanına bağlanılamadı: %v", err)
 	}
-	testQueries = New(conn)
+	testQueries := 
+	testQueries = db.New(conn)
 	defer conn.Close()
 
 	os.Exit(m.Run())
@@ -40,7 +41,7 @@ func TestMain(m *testing.M) {
 
 func TestDatabaseFunctions(t *testing.T) {
 	// You can create test data for your tests.
-	createParams := CreateRateLimitParams{
+	createParams := db.CreateRateLimitParams{
 		Clientid:       "testClient35",
 		RateLimit:      100,
 		RefillInterval: 60,
