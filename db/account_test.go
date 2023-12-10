@@ -90,6 +90,14 @@ func TestListRateLimits(t *testing.T) {
 		t.Logf("Result: %+v\n", result)
 	}
 }
+func TestDeleteAll(t *testing.T) {
+
+	err := testQueries.DeleteAllRateLimits(context.Background())
+	if err != nil {
+		t.Fatalf("Error deleting all rate limits: %v", err)
+	}
+
+}
 func TestDatabaseFunctionsMultiInput(t *testing.T) {
 	// Rastgele sayılar üretebilmek için rastgele bir seed ayarlayın.
 	rand.Seed(time.Now().UnixNano())

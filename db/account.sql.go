@@ -38,6 +38,15 @@ func (q *Queries) CreateRateLimit(ctx context.Context, arg CreateRateLimitParams
 	return i, err
 }
 
+const deleteAllRateLimits = `-- name: DeleteAllRateLimits :exec
+DELETE FROM ratelimitingdb
+`
+
+func (q *Queries) DeleteAllRateLimits(ctx context.Context) error {
+	_, err := q.exec(ctx, q.deleteAllRateLimitsStmt, deleteAllRateLimits)
+	return err
+}
+
 const deleteRateLimit = `-- name: DeleteRateLimit :exec
 DELETE FROM ratelimitingdb
 WHERE clientid = $1
@@ -65,7 +74,7 @@ func (q *Queries) GetRateLimit(ctx context.Context, clientid string) (Ratelimiti
 	return i, err
 }
 
-const listRateLimits = `-- name: ListRateLimits :one
+const listRateLimits = `-- name: ListRateLimits :many
 SELECT id, clientid, rate_limit, refill_interval FROM ratelimitingdb
 ORDER BY clientid
 LIMIT $1
@@ -77,16 +86,32 @@ type ListRateLimitsParams struct {
 	Offset int32 `json:"offset"`
 }
 
-func (q *Queries) ListRateLimits(ctx context.Context, arg ListRateLimitsParams) (Ratelimitingdb, error) {
-	row := q.queryRow(ctx, q.listRateLimitsStmt, listRateLimits, arg.Limit, arg.Offset)
-	var i Ratelimitingdb
-	err := row.Scan(
-		&i.ID,
-		&i.Clientid,
-		&i.RateLimit,
-		&i.RefillInterval,
-	)
-	return i, err
+func (q *Queries) ListRateLimits(ctx context.Context, arg ListRateLimitsParams) ([]Ratelimitingdb, error) {
+	rows, err := q.query(ctx, q.listRateLimitsStmt, listRateLimits, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Ratelimitingdb
+	for rows.Next() {
+		var i Ratelimitingdb
+		if err := rows.Scan(
+			&i.ID,
+			&i.Clientid,
+			&i.RateLimit,
+			&i.RefillInterval,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateRateLimit = `-- name: UpdateRateLimit :exec

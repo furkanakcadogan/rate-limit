@@ -10,7 +10,7 @@ RETURNING *;
 -- name: GetRateLimit :one
 SELECT * FROM ratelimitingdb
 WHERE clientid = $1 LIMIT 1;
--- name: ListRateLimits :one
+-- name: ListRateLimits :many
 SELECT * FROM ratelimitingdb
 ORDER BY clientid
 LIMIT $1
@@ -22,3 +22,5 @@ WHERE clientid = $1;
 -- name: DeleteRateLimit :exec
 DELETE FROM ratelimitingdb
 WHERE clientid = $1;
+-- name: DeleteAllRateLimits :exec
+DELETE FROM ratelimitingdb;
