@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	envFileLocation := "../../app.env"
+	envFileLocation := "..//app.env"
 	if err := godotenv.Load(envFileLocation); err != nil {
 		log.Fatalf("Failed to load .env file: %v", err)
 	}
