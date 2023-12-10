@@ -154,7 +154,7 @@ func min(a, b int64) int64 {
 }
 
 func fetchRateLimitConfigFromPostgres(db *sql.DB, clientID string) (int64, time.Duration, error) {
-	query := "SELECT rate_limit, refill_interval FROM rate_limits WHERE clientid = $1 LIMIT 1"
+	query := "SELECT rate_limit, refill_interval FROM ratelimitingdb WHERE clientid = $1 LIMIT 1"
 	row := db.QueryRow(query, clientID)
 
 	var rateLimit int64
