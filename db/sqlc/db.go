@@ -24,33 +24,25 @@ func New(db DBTX) *Queries {
 func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	q := Queries{db: db}
 	var err error
-	if q.getRateLimitByClientIDStmt, err = db.PrepareContext(ctx, getRateLimitByClientID); err != nil {
-		return nil, fmt.Errorf("error preparing query GetRateLimitByClientID: %w", err)
+	if q.createNewUserStmt, err = db.PrepareContext(ctx, createNewUser); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateNewUser: %w", err)
 	}
-	if q.insertRateLimitStmt, err = db.PrepareContext(ctx, insertRateLimit); err != nil {
-		return nil, fmt.Errorf("error preparing query InsertRateLimit: %w", err)
-	}
-	if q.updateRemainingLimitStmt, err = db.PrepareContext(ctx, updateRemainingLimit); err != nil {
-		return nil, fmt.Errorf("error preparing query UpdateRemainingLimit: %w", err)
+	if q.getRateLimitByIDStmt, err = db.PrepareContext(ctx, getRateLimitByID); err != nil {
+		return nil, fmt.Errorf("error preparing query GetRateLimitByID: %w", err)
 	}
 	return &q, nil
 }
 
 func (q *Queries) Close() error {
 	var err error
-	if q.getRateLimitByClientIDStmt != nil {
-		if cerr := q.getRateLimitByClientIDStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getRateLimitByClientIDStmt: %w", cerr)
+	if q.createNewUserStmt != nil {
+		if cerr := q.createNewUserStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createNewUserStmt: %w", cerr)
 		}
 	}
-	if q.insertRateLimitStmt != nil {
-		if cerr := q.insertRateLimitStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing insertRateLimitStmt: %w", cerr)
-		}
-	}
-	if q.updateRemainingLimitStmt != nil {
-		if cerr := q.updateRemainingLimitStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing updateRemainingLimitStmt: %w", cerr)
+	if q.getRateLimitByIDStmt != nil {
+		if cerr := q.getRateLimitByIDStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getRateLimitByIDStmt: %w", cerr)
 		}
 	}
 	return err
@@ -90,19 +82,17 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 }
 
 type Queries struct {
-	db                         DBTX
-	tx                         *sql.Tx
-	getRateLimitByClientIDStmt *sql.Stmt
-	insertRateLimitStmt        *sql.Stmt
-	updateRemainingLimitStmt   *sql.Stmt
+	db                   DBTX
+	tx                   *sql.Tx
+	createNewUserStmt    *sql.Stmt
+	getRateLimitByIDStmt *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db:                         tx,
-		tx:                         tx,
-		getRateLimitByClientIDStmt: q.getRateLimitByClientIDStmt,
-		insertRateLimitStmt:        q.insertRateLimitStmt,
-		updateRemainingLimitStmt:   q.updateRemainingLimitStmt,
+		db:                   tx,
+		tx:                   tx,
+		createNewUserStmt:    q.createNewUserStmt,
+		getRateLimitByIDStmt: q.getRateLimitByIDStmt,
 	}
 }

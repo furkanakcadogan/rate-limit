@@ -1,8 +1,16 @@
-postgres:
-	docker run --name client_rate_limiting -p 5432:5432 -e POSTGRES_USER=root -e POSTGRES_PASSWORD=secret -d postgres:latest
+postgres_setup:
+	docker run --name rate_limiting_db -p 5432:5432 -e POSTGRES_USER=root -e POSTGRES_PASSWORD=secret -d postgres:latest
+postgres_start:
+	docker start rate_limiting_db
 createdb:
-	docker exec -it client_rate_limiting createdb --username=root --owner=root rate_limiting
+	docker exec -it rate_limiting_db createdb --username=root --owner=root rate_limiting
 
+redis_clear_port:
+	redis-cli shutdown
+redis_setup:
+	docker run --name rate_limiting_redis -p 6379:6379 redis
+redis_start:
+	docker start rate_limiting_redis
 grpc:
 	docker run rate-limiter-app
 

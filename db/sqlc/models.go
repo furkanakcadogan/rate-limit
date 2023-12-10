@@ -7,8 +7,8 @@ package db
 import ()
 
 type RateLimit struct {
-	ID              int32  `json:"id"`
-	Clientid        string `json:"clientid"`
-	PredefinedLimit int32  `json:"predefined_limit"`
-	RemainingLimit  int32  `json:"remaining_limit"`
+	ID             int32  `json:"id"`
+	Clientid       string `json:"clientid"`
+	RateLimit      int32  `json:"rate_limit"`
+	RefillInterval int32  `json:"refill_interval"`
 }
