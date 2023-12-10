@@ -1,3 +1,4 @@
+// SqlPrompt/sqlPrompt.go
 package main
 
 import (
@@ -325,4 +326,5 @@ func main() {
 			fmt.Println("Invalid choice. Please select a valid option (1-7).")
 		}
 	}
+
 }
