@@ -1,4 +1,4 @@
-CREATE TABLE "rate_limits" (
+CREATE TABLE "rate_limiting_db" (
   "id" SERIAL PRIMARY KEY,
   "clientid" VARCHAR(255) UNIQUE NOT NULL,
   "rate_limit" INT NOT NULL,
