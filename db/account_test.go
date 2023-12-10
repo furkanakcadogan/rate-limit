@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"log"
 	"os"
+
 	"testing"
 
 	_ "github.com/jackc/pgx/v4"
@@ -38,7 +39,7 @@ func TestMain(m *testing.M) {
 func TestDatabaseFunctions(t *testing.T) {
 	// You can create test data for your tests.
 	createParams := CreateRateLimitParams{
-		Clientid:       "testClient2",
+		Clientid:       "testClient35",
 		RateLimit:      100,
 		RefillInterval: 60,
 	}
@@ -50,7 +51,7 @@ func TestDatabaseFunctions(t *testing.T) {
 	}
 
 	// Test GetRateLimit
-	fetchedRateLimit, err := testQueries.GetRateLimit(context.Background(), createdRateLimit.ID)
+	fetchedRateLimit, err := testQueries.GetRateLimit(context.Background(), createdRateLimit.Clientid)
 	if err != nil {
 		t.Fatalf("Error fetching rate limit: %v", err)
 	}
@@ -73,4 +74,65 @@ func TestDatabaseFunctions(t *testing.T) {
 
 	*/
 
+}
+func TestDeleteID(t *testing.T) {
+	deleted_Clientid := "testClient23"
+	err := testQueries.DeleteRateLimit(context.Background(), deleted_Clientid)
+	if err != nil {
+		t.Errorf("Error deleting rate limit: %v", err)
+	}
+
+}
+
+func TestListRateLimits(t *testing.T) {
+
+	// Örnek sorgu parametreleri
+	params := ListRateLimitsParams{
+		Limit:  100,
+		Offset: 0,
+	}
+	result, err := testQueries.ListRateLimits(context.Background(), params)
+	if err != nil {
+		t.Errorf("ListRateLimits sorgusu hata verdi: %v", err)
+	} else {
+		// resultı ekrana çıkar
+		t.Logf("Result: %+v\n", result)
+	}
+}
+
+func TestUpdateRateLimit(t *testing.T) {
+
+	// Convert to UpdateRateLimitParams with ClientID included
+	toUpdateParams := UpdateRateLimitParams{
+		Clientid:       "testClient12", // Correct field name to 'Clientid'
+		RateLimit:      100,
+		RefillInterval: 13,
+	}
+
+	CurrentParameters, err := testQueries.GetRateLimit(context.Background(), toUpdateParams.Clientid)
+	if err != nil {
+		t.Fatalf("GetRateLimit query failed: %v", err)
+	}
+
+	// Call UpdateRateLimit function
+	err = testQueries.UpdateRateLimit(context.Background(), toUpdateParams)
+
+	// Error check
+	if err != nil {
+		t.Fatalf("UpdateRateLimit query failed: %v", err)
+	}
+
+	// Get updated data from the database
+	UpdatedParams, err := testQueries.GetRateLimit(context.Background(), toUpdateParams.Clientid)
+
+	// Error check
+	if err != nil {
+		t.Fatalf("GetRateLimit query failed: %v", err)
+	}
+
+	// Check updated data
+	if CurrentParameters.RateLimit == UpdatedParams.RateLimit ||
+		CurrentParameters.RefillInterval == UpdatedParams.RefillInterval {
+		t.Errorf("Cannot Update Parameters!, they are the same")
+	}
 }

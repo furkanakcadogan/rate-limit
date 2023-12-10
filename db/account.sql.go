@@ -40,21 +40,21 @@ func (q *Queries) CreateRateLimit(ctx context.Context, arg CreateRateLimitParams
 
 const deleteRateLimit = `-- name: DeleteRateLimit :exec
 DELETE FROM ratelimitingdb
-WHERE id = $1
+WHERE clientid = $1
 `
 
-func (q *Queries) DeleteRateLimit(ctx context.Context, id int32) error {
-	_, err := q.exec(ctx, q.deleteRateLimitStmt, deleteRateLimit, id)
+func (q *Queries) DeleteRateLimit(ctx context.Context, clientid string) error {
+	_, err := q.exec(ctx, q.deleteRateLimitStmt, deleteRateLimit, clientid)
 	return err
 }
 
 const getRateLimit = `-- name: GetRateLimit :one
 SELECT id, clientid, rate_limit, refill_interval FROM ratelimitingdb
-WHERE id = $1 LIMIT 1
+WHERE clientid = $1 LIMIT 1
 `
 
-func (q *Queries) GetRateLimit(ctx context.Context, id int32) (Ratelimitingdb, error) {
-	row := q.queryRow(ctx, q.getRateLimitStmt, getRateLimit, id)
+func (q *Queries) GetRateLimit(ctx context.Context, clientid string) (Ratelimitingdb, error) {
+	row := q.queryRow(ctx, q.getRateLimitStmt, getRateLimit, clientid)
 	var i Ratelimitingdb
 	err := row.Scan(
 		&i.ID,
@@ -67,7 +67,7 @@ func (q *Queries) GetRateLimit(ctx context.Context, id int32) (Ratelimitingdb, e
 
 const listRateLimits = `-- name: ListRateLimits :one
 SELECT id, clientid, rate_limit, refill_interval FROM ratelimitingdb
-ORDER BY id
+ORDER BY clientid
 LIMIT $1
 OFFSET $2
 `
@@ -92,16 +92,16 @@ func (q *Queries) ListRateLimits(ctx context.Context, arg ListRateLimitsParams) 
 const updateRateLimit = `-- name: UpdateRateLimit :exec
 UPDATE ratelimitingdb
 SET rate_limit = $2, refill_interval = $3
-WHERE id = $1
+WHERE clientid = $1
 `
 
 type UpdateRateLimitParams struct {
-	ID             int32 `json:"id"`
-	RateLimit      int32 `json:"rate_limit"`
-	RefillInterval int32 `json:"refill_interval"`
+	Clientid       string `json:"clientid"`
+	RateLimit      int32  `json:"rate_limit"`
+	RefillInterval int32  `json:"refill_interval"`
 }
 
 func (q *Queries) UpdateRateLimit(ctx context.Context, arg UpdateRateLimitParams) error {
-	_, err := q.exec(ctx, q.updateRateLimitStmt, updateRateLimit, arg.ID, arg.RateLimit, arg.RefillInterval)
+	_, err := q.exec(ctx, q.updateRateLimitStmt, updateRateLimit, arg.Clientid, arg.RateLimit, arg.RefillInterval)
 	return err
 }
