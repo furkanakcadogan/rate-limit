@@ -6,7 +6,7 @@ package db
 
 import ()
 
-type RateLimitingDb struct {
+type Ratelimitingdb struct {
 	ID             int32  `json:"id"`
 	Clientid       string `json:"clientid"`
 	RateLimit      int32  `json:"rate_limit"`

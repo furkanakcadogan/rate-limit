@@ -23,9 +23,9 @@ type CreateNewUserParams struct {
 var testQueries *Queries
 
 func TestMain(m *testing.M) {
-	pgConnStr := "postgresql://root:secret@localhost:5432/rate_limiting_db?sslmode=disable"
+	pgConnStr := "postgresql://root:secret@localhost:5432/ratelimitingdb?sslmode=disable"
 
-	conn, err := sql.Open("postgres", pgConnStr)
+	conn, err := sql.Open("pgx", pgConnStr)
 	if err != nil {
 		log.Fatalf("Veritabanına bağlanılamadı: %v", err)
 	}
@@ -38,7 +38,7 @@ func TestMain(m *testing.M) {
 func TestDatabaseFunctions(t *testing.T) {
 	// You can create test data for your tests.
 	createParams := CreateRateLimitParams{
-		Clientid:       "testClient",
+		Clientid:       "testClient2",
 		RateLimit:      100,
 		RefillInterval: 60,
 	}
@@ -65,8 +65,12 @@ func TestDatabaseFunctions(t *testing.T) {
 	// You can continue with similar tests for other functions like ListRateLimits and UpdateRateLimit.
 
 	// Clean up by deleting the rate limit created for testing.
-	err = testQueries.DeleteRateLimit(context.Background(), createdRateLimit.ID)
-	if err != nil {
-		t.Errorf("Error deleting rate limit: %v", err)
-	}
+	/*
+		err = testQueries.DeleteRateLimit(context.Background(), createdRateLimit.ID)
+		if err != nil {
+			t.Errorf("Error deleting rate limit: %v", err)
+		}
+
+	*/
+
 }

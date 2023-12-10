@@ -1,5 +1,5 @@
 -- name: CreateRateLimit :one
-INSERT INTO rate_limiting_db (
+INSERT INTO ratelimitingdb (
   clientid,
   rate_limit,
   refill_interval
@@ -8,17 +8,17 @@ INSERT INTO rate_limiting_db (
 )
 RETURNING *;
 -- name: GetRateLimit :one
-SELECT * FROM rate_limiting_db
+SELECT * FROM ratelimitingdb
 WHERE id = $1 LIMIT 1;
 -- name: ListRateLimits :one
-SELECT * FROM rate_limiting_db
+SELECT * FROM ratelimitingdb
 ORDER BY id
 LIMIT $1
 OFFSET $2;
 -- name: UpdateRateLimit :exec
-UPDATE rate_limiting_db
+UPDATE ratelimitingdb
 SET rate_limit = $2, refill_interval = $3
 WHERE id = $1;
 -- name: DeleteRateLimit :exec
-DELETE FROM rate_limiting_db
+DELETE FROM ratelimitingdb
 WHERE id = $1;

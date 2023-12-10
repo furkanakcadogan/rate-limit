@@ -10,7 +10,7 @@ import (
 )
 
 const createRateLimit = `-- name: CreateRateLimit :one
-INSERT INTO rate_limiting_db (
+INSERT INTO ratelimitingdb (
   clientid,
   rate_limit,
   refill_interval
@@ -26,9 +26,9 @@ type CreateRateLimitParams struct {
 	RefillInterval int32  `json:"refill_interval"`
 }
 
-func (q *Queries) CreateRateLimit(ctx context.Context, arg CreateRateLimitParams) (RateLimitingDb, error) {
+func (q *Queries) CreateRateLimit(ctx context.Context, arg CreateRateLimitParams) (Ratelimitingdb, error) {
 	row := q.queryRow(ctx, q.createRateLimitStmt, createRateLimit, arg.Clientid, arg.RateLimit, arg.RefillInterval)
-	var i RateLimitingDb
+	var i Ratelimitingdb
 	err := row.Scan(
 		&i.ID,
 		&i.Clientid,
@@ -39,7 +39,7 @@ func (q *Queries) CreateRateLimit(ctx context.Context, arg CreateRateLimitParams
 }
 
 const deleteRateLimit = `-- name: DeleteRateLimit :exec
-DELETE FROM rate_limiting_db
+DELETE FROM ratelimitingdb
 WHERE id = $1
 `
 
@@ -49,13 +49,13 @@ func (q *Queries) DeleteRateLimit(ctx context.Context, id int32) error {
 }
 
 const getRateLimit = `-- name: GetRateLimit :one
-SELECT id, clientid, rate_limit, refill_interval FROM rate_limiting_db
+SELECT id, clientid, rate_limit, refill_interval FROM ratelimitingdb
 WHERE id = $1 LIMIT 1
 `
 
-func (q *Queries) GetRateLimit(ctx context.Context, id int32) (RateLimitingDb, error) {
+func (q *Queries) GetRateLimit(ctx context.Context, id int32) (Ratelimitingdb, error) {
 	row := q.queryRow(ctx, q.getRateLimitStmt, getRateLimit, id)
-	var i RateLimitingDb
+	var i Ratelimitingdb
 	err := row.Scan(
 		&i.ID,
 		&i.Clientid,
@@ -66,7 +66,7 @@ func (q *Queries) GetRateLimit(ctx context.Context, id int32) (RateLimitingDb, e
 }
 
 const listRateLimits = `-- name: ListRateLimits :one
-SELECT id, clientid, rate_limit, refill_interval FROM rate_limiting_db
+SELECT id, clientid, rate_limit, refill_interval FROM ratelimitingdb
 ORDER BY id
 LIMIT $1
 OFFSET $2
@@ -77,9 +77,9 @@ type ListRateLimitsParams struct {
 	Offset int32 `json:"offset"`
 }
 
-func (q *Queries) ListRateLimits(ctx context.Context, arg ListRateLimitsParams) (RateLimitingDb, error) {
+func (q *Queries) ListRateLimits(ctx context.Context, arg ListRateLimitsParams) (Ratelimitingdb, error) {
 	row := q.queryRow(ctx, q.listRateLimitsStmt, listRateLimits, arg.Limit, arg.Offset)
-	var i RateLimitingDb
+	var i Ratelimitingdb
 	err := row.Scan(
 		&i.ID,
 		&i.Clientid,
@@ -90,7 +90,7 @@ func (q *Queries) ListRateLimits(ctx context.Context, arg ListRateLimitsParams) 
 }
 
 const updateRateLimit = `-- name: UpdateRateLimit :exec
-UPDATE rate_limiting_db
+UPDATE ratelimitingdb
 SET rate_limit = $2, refill_interval = $3
 WHERE id = $1
 `

@@ -1,2 +1,2 @@
-DROP TABLE IF EXISTS rate_limiting_db;
+DROP TABLE IF EXISTS ratelimitingdb;
 

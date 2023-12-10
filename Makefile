@@ -1,20 +1,20 @@
 postgres_setup:
-	docker run --name rate_limiting_db -p 5432:5432 -e POSTGRES_USER=root -e POSTGRES_PASSWORD=secret -d postgres:latest
+	docker run --name ratelimitingdb -p 5432:5432 -e POSTGRES_USER=root -e POSTGRES_PASSWORD=secret -d postgres:latest
 postgres_start:
-	docker start rate_limiting_db
+	docker start ratelimitingdb
 
 createdb:
-	docker exec -it rate_limiting_db createdb --username=root --owner=root rate_limiting_db
+	docker exec -it ratelimitingdb createdb --username=root --owner=root ratelimitingdb
 dropdb:
-	docker exec -it postgres12 dropdb --username=root rate_limiting_db
+	docker exec -it postgres12 dropdb --username=root ratelimitingdb
 
 
 
 migrateup:
-	migrate -path db/migration -database "postgresql://root:secret@localhost:5432/rate_limiting?sslmode=disable" -verbose up 
+	migrate -path db/migration -database "postgresql://root:secret@localhost:5432/ratelimitingdb?sslmode=disable" -verbose up 
 
 migratedown:
-	migrate -path db/migration -database "postgresql://root:secret@localhost:5432/rate_limiting?sslmode=disable" -verbose down
+	migrate -path db/migration -database "postgresql://root:secret@localhost:5432/ratelimitingdb?sslmode=disable" -verbose down
 redis_clear_port:
 	redis-cli shutdown
 redis_setup:
