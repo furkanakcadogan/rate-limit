@@ -169,3 +169,23 @@ func TestUpdateRateLimit(t *testing.T) {
 		t.Errorf("Cannot Update Parameters!, they are the same")
 	}
 }
+func TestMultiplyAllRateLimits(t *testing.T) {
+	// Test için MultiplyAllRateLimitsParams parametrelerini ayarlayın.
+	arg := MultiplyAllRateLimitsParams{
+		RateLimit:      5, // Örneğin, rate limit değerlerini 1.5 ile çarpın.
+		RefillInterval: 4, // Örneğin, refill interval değerlerini 2 ile çarpın.
+	}
+
+	// MultiplyAllRateLimits fonksiyonunu çağırın.
+	err := testQueries.MultiplyAllRateLimits(context.Background(), arg)
+	if err != nil {
+		t.Fatalf("MultiplyAllRateLimits failed: %v", err)
+	}
+
+	// Burada, veritabanında yapılan değişiklikleri doğrulamak için ek sorgular yazabilirsiniz.
+	// Örneğin, güncellenmiş değerleri sorgulayıp beklenen sonuçlarla karşılaştırabilirsiniz.
+}
+func TestSafelyMultiplyAllRateLimits(t *testing.T) {
+	// Define multipliers
+
+}

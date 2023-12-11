@@ -109,7 +109,9 @@ func DeleteClient(queries *db.Queries) {
 		log.Fatalf("Error deleting rate limit: %v", err)
 	}
 }
+func TestMultiplyAllRateLimits(queries *db.Queries) {
 
+}
 func ListClientIDRecords(queries *db.Queries) {
 	fmt.Printf("Listing Existing Records:\n")
 	// Sample query parameters
@@ -299,7 +301,7 @@ func main() {
 		fmt.Println("7. Quit")
 
 		var choice int
-		fmt.Print("Enter your choice (1-7): ")
+		fmt.Print("Enter your choice (1-8): ")
 		_, err := fmt.Scanf("%d", &choice)
 		if err != nil {
 			log.Printf("Error reading choice: %v", err)

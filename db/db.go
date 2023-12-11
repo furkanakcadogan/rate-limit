@@ -39,6 +39,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.listRateLimitsStmt, err = db.PrepareContext(ctx, listRateLimits); err != nil {
 		return nil, fmt.Errorf("error preparing query ListRateLimits: %w", err)
 	}
+	if q.multiplyAllRateLimitsStmt, err = db.PrepareContext(ctx, multiplyAllRateLimits); err != nil {
+		return nil, fmt.Errorf("error preparing query MultiplyAllRateLimits: %w", err)
+	}
 	if q.updateRateLimitStmt, err = db.PrepareContext(ctx, updateRateLimit); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateRateLimit: %w", err)
 	}
@@ -70,6 +73,11 @@ func (q *Queries) Close() error {
 	if q.listRateLimitsStmt != nil {
 		if cerr := q.listRateLimitsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listRateLimitsStmt: %w", cerr)
+		}
+	}
+	if q.multiplyAllRateLimitsStmt != nil {
+		if cerr := q.multiplyAllRateLimitsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing multiplyAllRateLimitsStmt: %w", cerr)
 		}
 	}
 	if q.updateRateLimitStmt != nil {
@@ -114,25 +122,27 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 }
 
 type Queries struct {
-	db                      DBTX
-	tx                      *sql.Tx
-	createRateLimitStmt     *sql.Stmt
-	deleteAllRateLimitsStmt *sql.Stmt
-	deleteRateLimitStmt     *sql.Stmt
-	getRateLimitStmt        *sql.Stmt
-	listRateLimitsStmt      *sql.Stmt
-	updateRateLimitStmt     *sql.Stmt
+	db                        DBTX
+	tx                        *sql.Tx
+	createRateLimitStmt       *sql.Stmt
+	deleteAllRateLimitsStmt   *sql.Stmt
+	deleteRateLimitStmt       *sql.Stmt
+	getRateLimitStmt          *sql.Stmt
+	listRateLimitsStmt        *sql.Stmt
+	multiplyAllRateLimitsStmt *sql.Stmt
+	updateRateLimitStmt       *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db:                      tx,
-		tx:                      tx,
-		createRateLimitStmt:     q.createRateLimitStmt,
-		deleteAllRateLimitsStmt: q.deleteAllRateLimitsStmt,
-		deleteRateLimitStmt:     q.deleteRateLimitStmt,
-		getRateLimitStmt:        q.getRateLimitStmt,
-		listRateLimitsStmt:      q.listRateLimitsStmt,
-		updateRateLimitStmt:     q.updateRateLimitStmt,
+		db:                        tx,
+		tx:                        tx,
+		createRateLimitStmt:       q.createRateLimitStmt,
+		deleteAllRateLimitsStmt:   q.deleteAllRateLimitsStmt,
+		deleteRateLimitStmt:       q.deleteRateLimitStmt,
+		getRateLimitStmt:          q.getRateLimitStmt,
+		listRateLimitsStmt:        q.listRateLimitsStmt,
+		multiplyAllRateLimitsStmt: q.multiplyAllRateLimitsStmt,
+		updateRateLimitStmt:       q.updateRateLimitStmt,
 	}
 }

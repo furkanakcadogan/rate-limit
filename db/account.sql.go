@@ -114,6 +114,22 @@ func (q *Queries) ListRateLimits(ctx context.Context, arg ListRateLimitsParams) 
 	return items, nil
 }
 
+const multiplyAllRateLimits = `-- name: MultiplyAllRateLimits :exec
+UPDATE ratelimitingdb
+SET rate_limit =rate_limit * $1, 
+    refill_interval = refill_interval * $2
+`
+
+type MultiplyAllRateLimitsParams struct {
+	RateLimit      int32 `json:"rate_limit"`
+	RefillInterval int32 `json:"refill_interval"`
+}
+
+func (q *Queries) MultiplyAllRateLimits(ctx context.Context, arg MultiplyAllRateLimitsParams) error {
+	_, err := q.exec(ctx, q.multiplyAllRateLimitsStmt, multiplyAllRateLimits, arg.RateLimit, arg.RefillInterval)
+	return err
+}
+
 const updateRateLimit = `-- name: UpdateRateLimit :exec
 UPDATE ratelimitingdb
 SET rate_limit = $2, refill_interval = $3

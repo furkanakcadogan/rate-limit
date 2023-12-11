@@ -24,3 +24,7 @@ DELETE FROM ratelimitingdb
 WHERE clientid = $1;
 -- name: DeleteAllRateLimits :exec
 DELETE FROM ratelimitingdb;
+-- name: MultiplyAllRateLimits :exec
+UPDATE ratelimitingdb
+SET rate_limit =rate_limit * $1, 
+    refill_interval = refill_interval * $2;
