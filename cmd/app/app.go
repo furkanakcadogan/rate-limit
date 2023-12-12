@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+
 	"os"
 	"time"
 
@@ -188,7 +189,24 @@ func isRequestAllowed(redisClient *redis.Client, db *sql.DB, clientID string, to
 	return allowed, remainingTokens, nil
 }
 
+func startGRPCServer(grpcServerAddress string, redisClient *redis.Client, db *sql.DB) {
+	lis, err := net.Listen("tcp", grpcServerAddress)
+	if err != nil {
+		log.Fatalf("Failed to listen: %v", err)
+	}
+
+	grpcServer := grpc.NewServer()
+	proto.RegisterRateLimitServiceServer(grpcServer, NewRateLimitServer(redisClient, db))
+
+	log.Printf("Starting gRPC server on %s", grpcServerAddress)
+	if err := grpcServer.Serve(lis); err != nil {
+		log.Fatalf("Failed to serve gRPC server: %v", err)
+	}
+}
+
 func main() {
+	// HTTP server
+
 	// .env dosyasının bir üst dizininde olduğunu belirtin
 	envFileLocation := "../../app.env"
 
@@ -216,16 +234,10 @@ func main() {
 		log.Fatalf("Failed to ping database: %v", err)
 	}
 
-	lis, err := net.Listen("tcp", grpcServerAddress)
-	if err != nil {
-		log.Fatalf("Failed to listen: %v", err)
-	}
+	// Start gRPC server as a Go routine
+	go startGRPCServer(grpcServerAddress, redisClient, db)
+	fmt.Println("gRPC server is running on", grpcServerAddress)
 
-	grpcServer := grpc.NewServer()
-	proto.RegisterRateLimitServiceServer(grpcServer, NewRateLimitServer(redisClient, db))
-
-	log.Printf("Starting gRPC server on %s", grpcServerAddress)
-	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatalf("Failed to serve: %v", err)
-	}
+	// Block main goroutine to prevent exit
+	select {}
 }
