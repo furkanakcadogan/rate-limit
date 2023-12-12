@@ -109,10 +109,10 @@ func CheckRateLimit(client proto.RateLimitServiceClient, clientID string) {
 	if response.Allowed {
 		log.Printf("Response to client ID: %s, allowed: %t, remaining tokens: %d\n", clientID, response.Allowed, response.RemainingTokens)
 		allowedRequests.Inc()
-		log.Printf("prometheus inc. allowed", clientID)
+
 	} else {
 		log.Printf("Response to client ID: %s, Request Rejected.", clientID)
 		rejectedRequests.Inc()
-		log.Printf("prometheus inc. rejected", clientID)
+
 	}
 }
