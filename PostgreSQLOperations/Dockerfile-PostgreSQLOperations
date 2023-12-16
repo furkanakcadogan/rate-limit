@@ -7,7 +7,7 @@ COPY go.sum .
 
 RUN go mod download
 
-COPY SqlPrompt/sqlPrompt.go PostgreSQLOperations/PostgreSQLOperation.go
+COPY PostgreSQLOperations/PostgreSQLOperation.go PostgreSQLOperations/PostgreSQLOperation.go
 
 RUN go build -o /sqlPrompt PostgreSQLOperations/PostgreSQLOperation.go
 

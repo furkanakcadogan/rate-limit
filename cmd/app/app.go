@@ -18,7 +18,7 @@ import (
 	"github.com/shirou/gopsutil/mem"
 	"google.golang.org/grpc"
 
-	"github.com/furkanakcadogan/rate-limit/proto" // Update this import path
+	"github.com/furkanakcadogan/rate-limit/proto"
 )
 
 var (
