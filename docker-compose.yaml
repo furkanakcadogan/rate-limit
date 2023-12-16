@@ -6,10 +6,10 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-  app:
+  rate_limiter:
     build:
       context: .        
-      dockerfile: ./app/Dockerfile-app
+      dockerfile: ./RateLimiter/Dockerfile-RateLimiter
     env_file:
      - app.env
   redis_refresher:

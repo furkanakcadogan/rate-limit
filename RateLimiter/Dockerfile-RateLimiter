@@ -1,20 +1,22 @@
 FROM golang:latest
 
 WORKDIR /app
-# Set default values for environment variables
+
 ENV ENVIRONMENT=development
 ENV DB_SOURCE=postgresql://root:secret@localhost:5432/ratelimitingdb?sslmode=disable
 ENV GRPC_SERVER_ADDRESS=localhost:50051
 ENV REDIS_ADDRESS=localhost:6379
 ENV REDIS_REFRESHER_HTTP_PORT=8081
 ENV GO_CLIENT_HTTP_PORT=8080
+
 COPY go.mod .
 COPY go.sum .
 
 RUN go mod download
+
 COPY . .
-COPY grpcClient/grpc_client.go grpcClient/grpc_client.go
 
-RUN go build -o /grpcClient grpcClient/grpc_client.go
 
-CMD ["/grpcClient"]
+RUN go build -o /app/rateLimiter ./RateLimiter/rateLimiter.go
+
+CMD ["/RateLimiter"]

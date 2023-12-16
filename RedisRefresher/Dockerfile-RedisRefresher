@@ -3,16 +3,23 @@ FROM golang:latest
 
 # Set the working directory in the container
 WORKDIR /app
+ENV ENVIRONMENT=development
+ENV DB_SOURCE=postgresql://root:secret@localhost:5432/ratelimitingdb?sslmode=disable
+ENV GRPC_SERVER_ADDRESS=localhost:50051
+ENV REDIS_ADDRESS=localhost:6379
+ENV REDIS_REFRESHER_HTTP_PORT=8081
+ENV GO_CLIENT_HTTP_PORT=8080
 
 # Copy the Go Modules manifests
-COPY go.mod go.sum ./
+COPY go.mod .
+COPY go.sum .
 
 # Download Go modules
 RUN go mod download
 
 # Copy the entire project directory (including internal packages)
 COPY . .
-
+COPY RedisRefresher/redisRefresher.go RedisRefresher/redisRefresher.go
 # Build the RedisRefresher executable
 RUN go build -o /redisRefresher RedisRefresher/redisRefresher.go
 
