@@ -1,154 +1,200 @@
-// SqlPrompt/sqlPrompt.go
 package main
 
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand"
-	"strings"
+	"net/http"
 	"time"
 
 	"github.com/furkanakcadogan/rate-limit/db"
 	_ "github.com/jackc/pgx/v4"
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/lib/pq"
-	_ "github.com/lib/pq"
 )
 
-// Define CreateNewUserParams struct
 type CreateNewUserParams struct {
-	ClientID       string
-	RateLimit      int32
-	RefillInterval int32
+	ClientID       string `json:"clientId"`
+	RateLimit      int32  `json:"rateLimit"`
+	RefillInterval int32  `json:"refillInterval"`
 }
 
-func InsertNewClient(queries *db.Queries) {
-	fmt.Printf("Inserting new Client:\n")
-	// Prompt the user for clientid
-	fmt.Print("Enter clientid: ")
-	var clientid string
-	_, err := fmt.Scan(&clientid)
-	if err != nil {
-		log.Printf("Error reading clientid: %v", err)
+type HTTPHandler struct {
+	queries *db.Queries
+}
+
+func NewHTTPHandler(queries *db.Queries) *HTTPHandler {
+	return &HTTPHandler{queries: queries}
+}
+
+func handleHTTPMethod(w http.ResponseWriter, r *http.Request, allowedMethod string, handlerFunc http.HandlerFunc) {
+	if r.Method != allowedMethod {
+		http.Error(w, "Unsupported method", http.StatusMethodNotAllowed)
+		return
+	}
+	handlerFunc(w, r)
+}
+
+func (h *HTTPHandler) InsertNewClientHandler(w http.ResponseWriter, r *http.Request) {
+	var params CreateNewUserParams
+	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// Check if the clientid already exists in the database
-	_, err = queries.GetRateLimit(context.Background(), clientid)
+	message, err := InsertNewClient(h.queries, params.ClientID, params.RateLimit, params.RefillInterval)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": message})
+}
+
+func InsertNewClient(queries *db.Queries, clientID string, rateLimit int32, refillInterval int32) (string, error) {
+	_, err := queries.GetRateLimit(context.Background(), clientID)
 	if err == nil {
-		// Clientid already exists, so we skip the duplicate entry
-		log.Printf("Clientid %s already exists in the database. Skipping duplicate entry.", clientid)
-		return
+		msg := fmt.Sprintf("ClientID %s already exists in the database. Skipping duplicate entry.", clientID)
+		log.Print(msg)
+		return msg, nil
 	} else if err != sql.ErrNoRows {
-		// An error occurred other than "not found" error
-		log.Printf("Error checking if clientid exists: %v", err)
-		return
+		return "", err
 	}
 
-	// Prompt the user for rate limit and refill interval
-	fmt.Print("Enter Rate Limit: ")
-	var rateLimit int32
-	_, err = fmt.Scanf("%d", &rateLimit)
-	if err != nil {
-		log.Printf("Error reading Rate Limit: %v", err)
-		return
-	}
-
-	fmt.Print("Enter Refill Interval: ")
-	var refillInterval int32
-	_, err = fmt.Scanf("%d", &refillInterval)
-	if err != nil {
-		log.Printf("Error reading Refill Interval: %v", err)
-		return
-	}
-
-	// Create CreateRateLimitParams
 	createParams := db.CreateRateLimitParams{
-		Clientid:       clientid,
+		Clientid:       clientID,
 		RateLimit:      rateLimit,
 		RefillInterval: refillInterval,
 	}
 
-	// Test CreateRateLimit
-	createdRateLimit, err := queries.CreateRateLimit(context.Background(), createParams)
+	_, err = queries.CreateRateLimit(context.Background(), createParams)
 	if err != nil {
-		log.Printf("Error creating rate limit: %v", err)
-		return
+		return "", err
 	}
 
-	// Test GetRateLimit
-	fetchedRateLimit, err := queries.GetRateLimit(context.Background(), createdRateLimit.Clientid)
-	if err != nil {
-		log.Printf("Error fetching rate limit: %v", err)
-		return
-	}
-
-	// Assert that the fetched rate limit matches the created one.
-	if fetchedRateLimit.Clientid != createParams.Clientid ||
-		fetchedRateLimit.RateLimit != createParams.RateLimit ||
-		fetchedRateLimit.RefillInterval != createParams.RefillInterval {
-		log.Printf("Fetched rate limit does not match the created one.")
-	}
+	msg := fmt.Sprintf("New client with ID %s successfully inserted.", clientID)
+	return msg, nil
 }
 
-// Helper function to check if an error is a duplicate key violation
-func isDuplicateKeyError(err error) bool {
-	if pgErr, ok := err.(*pq.Error); ok && pgErr.Code == "23505" {
-		return true
-	}
-	return false
-}
-
-func DeleteClient(queries *db.Queries) {
-	fmt.Printf("Deleting Existing Client:\n")
-	deleted_Clientid := "testClient23"
-	err := queries.DeleteRateLimit(context.Background(), deleted_Clientid)
-	if err != nil {
-		log.Fatalf("Error deleting rate limit: %v", err)
-	}
-}
-func TestMultiplyAllRateLimits(queries *db.Queries) {
-
-}
-func ListClientIDRecords(queries *db.Queries) {
-	fmt.Printf("Listing Existing Records:\n")
-	// Sample query parameters
-	params := db.ListRateLimitsParams{
-		Limit:  100,
-		Offset: 0,
-	}
-
-	result, err := queries.ListRateLimits(context.Background(), params)
-	if err != nil {
-		log.Fatalf("ListRateLimits query failed: %v", err)
-	} else {
-		// Print each result on a new line
-		for _, rateLimit := range result {
-			log.Printf("ID: %d, ClientID: %s, RateLimit: %d, RefillInterval: %d",
-				rateLimit.ID, rateLimit.Clientid, rateLimit.RateLimit, rateLimit.RefillInterval)
+func (h *HTTPHandler) DeleteClientHandler(w http.ResponseWriter, r *http.Request) {
+	handleHTTPMethod(w, r, "POST", func(w http.ResponseWriter, r *http.Request) {
+		var params DeleteClientParams
+		if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
-	}
+		message, err := DeleteClient(h.queries, params.ClientID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"message": message})
+	})
 }
 
-func GenerateRandomClientIDs(queries *db.Queries) {
-	fmt.Printf("Generate Random ClientIDs Prompt: (Warning! Due to nature of random values you can view some duplication errors)\n")
-	// Prompt the user for the number of records to create
-	fmt.Print("Enter the number of records to create: ")
-	var numRecords int
-	_, err := fmt.Scanf("%d", &numRecords)
+type DeleteClientParams struct {
+	ClientID string `json:"clientId"`
+}
+
+func DeleteClient(queries *db.Queries, clientID string) (string, error) {
+	_, err := queries.GetRateLimit(context.Background(), clientID)
 	if err != nil {
-		log.Printf("Error reading input: %v", err)
-		return // Burada return kullanarak hatalı giriş durumunda fonksiyonu sonlandırabilirsiniz.
+		if err == sql.ErrNoRows {
+			return fmt.Sprintf("Client %s does not exist in the database.", clientID), nil
+		}
+		return "", err
 	}
 
+	err = queries.DeleteRateLimit(context.Background(), clientID)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("Client %s successfully deleted.", clientID), nil
+}
+
+type ListClientParams struct {
+	Limit  int `json:"limit"`
+	Offset int `json:"offset"`
+}
+
+func (h *HTTPHandler) ListClientIDRecordsHandler(w http.ResponseWriter, r *http.Request) {
+	handleHTTPMethod(w, r, "POST", func(w http.ResponseWriter, r *http.Request) {
+		var params ListClientParams
+		if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+			http.Error(w, "Bad request", http.StatusBadRequest)
+			return
+		}
+
+		if params.Limit <= 0 {
+			params.Limit = 100
+		}
+		if params.Offset < 0 {
+			params.Offset = 0
+		}
+
+		dbParams := db.ListRateLimitsParams{
+			Limit:  int32(params.Limit),
+			Offset: int32(params.Offset),
+		}
+
+		result, err := h.queries.ListRateLimits(context.Background(), dbParams)
+		if err != nil {
+			log.Printf("ListRateLimits query failed: %v", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(result); err != nil {
+			log.Printf("Error encoding response: %v", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+		}
+	})
+}
+
+type GenerateRandomClientParams struct {
+	NumRecords int `json:"numRecords"`
+}
+
+func (h *HTTPHandler) GenerateRandomClientIDsHandler(w http.ResponseWriter, r *http.Request) {
+	handleHTTPMethod(w, r, "POST", func(w http.ResponseWriter, r *http.Request) {
+		var params GenerateRandomClientParams
+		if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+			http.Error(w, "Bad request", http.StatusBadRequest)
+			return
+		}
+
+		if params.NumRecords <= 0 {
+			http.Error(w, "Number of records must be positive", http.StatusBadRequest)
+			return
+		}
+
+		message, err := GenerateRandomClientIDs(h.queries, params.NumRecords)
+		if err != nil {
+			http.Error(w, "Cannot Generate All Users There Are Some Duplicates", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"message": message})
+	})
+}
+
+func GenerateRandomClientIDs(queries *db.Queries, numRecords int) (string, error) {
 	rand.Seed(time.Now().UnixNano())
 
+	successfulRecords := 0
+
 	for i := 0; i < numRecords; i++ {
-		rateLimit := int32(rand.Intn(21))                   // 0-20 arası rastgele bir değer
-		refillInterval := int32(rand.Intn(51) + 10)         // 10-60 arası rastgele bir değer
-		clientID := fmt.Sprintf("Client%d", rand.Intn(101)) // 0 ile 100 arasında rastgele bir değer al
+		rateLimit := int32(rand.Intn(21))
+		refillInterval := int32(rand.Intn(51) + 10)
+		clientID := fmt.Sprintf("Client%d", rand.Intn(101))
 
 		createParams := db.CreateRateLimitParams{
 			Clientid:       clientID,
@@ -156,177 +202,175 @@ func GenerateRandomClientIDs(queries *db.Queries) {
 			RefillInterval: refillInterval,
 		}
 
-		createdRateLimit, err := queries.CreateRateLimit(context.Background(), createParams)
+		_, err := queries.CreateRateLimit(context.Background(), createParams)
 		if err != nil {
 			if isDuplicateKeyError(err) {
 				log.Printf("Skipping record creation for %s due to duplicate key violation.", createParams.Clientid)
-				continue // Skip this iteration and proceed to the next record
+				continue
 			}
 			log.Printf("Error creating rate limit: %v", err)
-			continue // Burada da continue kullanarak hata durumunda sonraki kayda geçebilirsiniz.
-		}
+		} else {
+			successfulRecords++
 
-		fetchedRateLimit, err := queries.GetRateLimit(context.Background(), createdRateLimit.Clientid)
-		if err != nil {
-			log.Printf("Error fetching rate limit: %v", err)
-			continue // Hata durumunda sonraki kayda geç
-		}
-
-		if fetchedRateLimit.Clientid != createParams.Clientid ||
-			fetchedRateLimit.RateLimit != rateLimit ||
-			fetchedRateLimit.RefillInterval != refillInterval {
-			log.Printf("Fetched rate limit does not match the created one.")
-			continue // Veri uyumsuzluğu durumunda sonraki kayda geç
+			fetchedRateLimit, err := queries.GetRateLimit(context.Background(), createParams.Clientid)
+			if err != nil {
+				log.Printf("Error fetching rate limit: %v", err)
+			} else if fetchedRateLimit.Clientid != createParams.Clientid ||
+				fetchedRateLimit.RateLimit != rateLimit ||
+				fetchedRateLimit.RefillInterval != refillInterval {
+				log.Printf("Fetched rate limit does not match the created one.")
+			}
 		}
 	}
+
+	return fmt.Sprintf("%d random clients generated successfully, The other random values already in database ", successfulRecords), nil
 }
 
-func UpdateClientParameters(queries *db.Queries) {
-	fmt.Printf("Updating Client Parameters:\n")
-	// Prompt the user for clientid
-	fmt.Print("Enter clientid to update: ")
-	var clientid string
-	_, err := fmt.Scan(&clientid)
-	if err != nil {
-		log.Printf("Error reading clientid: %v", err)
-		return
+func isDuplicateKeyError(err error) bool {
+	if pgErr, ok := err.(*pq.Error); ok && pgErr.Code == "23505" {
+		return true
 	}
+	return false
+}
 
-	// Get current rate limit and refill interval for the specified clientid
-	currentParams, err := queries.GetRateLimit(context.Background(), clientid)
+type UpdateClientParametersParams struct {
+	ClientID          string `json:"clientId"`
+	NewRateLimit      int32  `json:"newRateLimit"`
+	NewRefillInterval int32  `json:"newRefillInterval"`
+}
+
+type RateLimitParams struct {
+	ClientID       string `json:"clientId"`
+	RateLimit      int32  `json:"rateLimit"`
+	RefillInterval int32  `json:"refillInterval"`
+}
+
+func UpdateClientParameters(queries *db.Queries, clientID string, newRateLimit int32, newRefillInterval int32) (RateLimitParams, error) {
+	currentParams, err := queries.GetRateLimit(context.Background(), clientID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			fmt.Printf("Client %s not found in the database. Continuing...\n", clientid)
-			return // Client not found, so we don't prompt for new values
+			fmt.Printf("Client %s not found in the database. Continuing...\n", clientID)
+			return RateLimitParams{}, err
 		} else {
 			log.Printf("GetRateLimit query failed: %v", err)
-			return
+			return RateLimitParams{}, err
 		}
 	}
 
-	// Client is found, so we prompt for new values
-	fmt.Printf("Current Rate Limit for %s: %d\n", clientid, currentParams.RateLimit)
-	fmt.Printf("Current Refill Interval for %s: %d\n", clientid, currentParams.RefillInterval)
+	fmt.Printf("Current Rate Limit for %s: %d\n", clientID, currentParams.RateLimit)
+	fmt.Printf("Current Refill Interval for %s: %d\n", clientID, currentParams.RefillInterval)
 
-	// Prompt the user for new rate limit and refill interval
-	fmt.Print("Enter new Rate Limit: ")
-	var newRateLimit int32
-	_, err = fmt.Scanf("%d", &newRateLimit)
-	if err != nil {
-		log.Printf("Error reading new Rate Limit: %v", err)
-		return
-	}
-
-	fmt.Print("Enter new Refill Interval: ")
-	var newRefillInterval int32
-	_, err = fmt.Scanf("%d", &newRefillInterval)
-	if err != nil {
-		log.Printf("Error reading new Refill Interval: %v", err)
-		return
-	}
-
-	// Create UpdateRateLimitParams
 	updateParams := db.UpdateRateLimitParams{
-		Clientid:       clientid,
+		Clientid:       clientID,
 		RateLimit:      newRateLimit,
 		RefillInterval: newRefillInterval,
 	}
 
-	// Call UpdateRateLimit function
 	err = queries.UpdateRateLimit(context.Background(), updateParams)
 
-	// Error check
 	if err != nil {
 		log.Printf("UpdateRateLimit query failed: %v", err)
-		return
+		return RateLimitParams{}, err
 	}
 
-	// Get updated data from the database
-	updatedParams, err := queries.GetRateLimit(context.Background(), clientid)
+	updatedParams, err := queries.GetRateLimit(context.Background(), clientID)
 
-	// Error check
 	if err != nil {
 		log.Printf("GetRateLimit query failed: %v", err)
-		return
+		return RateLimitParams{}, err
 	}
 
-	// Print updated data
-	fmt.Printf("Updated Rate Limit for %s: %d\n", clientid, updatedParams.RateLimit)
-	fmt.Printf("Updated Refill Interval for %s: %d\n", clientid, updatedParams.RefillInterval)
+	fmt.Printf("Updated Rate Limit for %s: %d\n", clientID, updatedParams.RateLimit)
+	fmt.Printf("Updated Refill Interval for %s: %d\n", clientID, updatedParams.RefillInterval)
+
+	updatedRateLimitParams := RateLimitParams{
+		ClientID:       updatedParams.Clientid,
+		RateLimit:      updatedParams.RateLimit,
+		RefillInterval: updatedParams.RefillInterval,
+	}
+
+	return updatedRateLimitParams, nil
 }
 
-func askForConfirmation() bool {
-	fmt.Print("Are you sure? (y/n): ")
-	var response string
-	_, err := fmt.Scan(&response)
-	if err != nil {
-		log.Printf("Error reading input: %v", err)
-		return false
-	}
-	return strings.ToLower(response) == "y"
+func (h *HTTPHandler) UpdateClientParametersHandler(w http.ResponseWriter, r *http.Request) {
+	handleHTTPMethod(w, r, "POST", func(w http.ResponseWriter, r *http.Request) {
+		var params UpdateClientParametersParams
+		if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		updatedParams, err := UpdateClientParameters(h.queries, params.ClientID, params.NewRateLimit, params.NewRefillInterval)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(updatedParams)
+	})
 }
 
-func DeleteAllClients(queries *db.Queries) {
-	fmt.Printf("Deleting all database:\n")
-	if !askForConfirmation() {
-		fmt.Println("Operation canceled.")
-		return
-	}
+func DeleteAllClients(queries *db.Queries) error {
+	fmt.Println("Deleting all rate limits from the database...")
 
 	err := queries.DeleteAllRateLimits(context.Background())
 	if err != nil {
-		log.Fatalf("Error deleting all rate limits: %v", err)
+		log.Printf("Error deleting all rate limits: %v", err)
+		return err
 	}
 	fmt.Println("All rate limits deleted successfully.")
+	return nil
+}
+
+func (h *HTTPHandler) DeleteAllClientsHandler(w http.ResponseWriter, r *http.Request) {
+	handleHTTPMethod(w, r, "POST", func(w http.ResponseWriter, r *http.Request) {
+		err := DeleteAllClients(h.queries)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"message": "All rate limits deleted successfully."})
+	})
 }
 
 func main() {
 	pgConnStr := "postgresql://root:secret@localhost:5432/ratelimitingdb?sslmode=disable"
 	conn, err := sql.Open("pgx", pgConnStr)
 	if err != nil {
-		log.Fatalf("Veritabanına bağlanılamadı: %v", err)
+		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer conn.Close()
 
 	queries := db.New(conn)
+	handler := NewHTTPHandler(queries)
 
-	for {
-		fmt.Println("\nSelect an option:")
-		fmt.Println("1. Insert New Client")
-		fmt.Println("2. Delete Client")
-		fmt.Println("3. List Client ID Records")
-		fmt.Println("4. Generate Random Client IDs")
-		fmt.Println("5. Update Client Parameters")
-		fmt.Println("6. Delete All Clients")
-		fmt.Println("7. Quit")
+	http.HandleFunc("/insert", func(w http.ResponseWriter, r *http.Request) {
+		handleHTTPMethod(w, r, "POST", handler.InsertNewClientHandler)
+	})
 
-		var choice int
-		fmt.Print("Enter your choice (1-8): ")
-		_, err := fmt.Scanf("%d", &choice)
-		if err != nil {
-			log.Printf("Error reading choice: %v", err)
-			continue
-		}
+	http.HandleFunc("/delete", func(w http.ResponseWriter, r *http.Request) {
+		handleHTTPMethod(w, r, "POST", handler.DeleteClientHandler)
+	})
 
-		switch choice {
-		case 1:
-			InsertNewClient(queries)
-		case 2:
-			DeleteClient(queries)
-		case 3:
-			ListClientIDRecords(queries)
-		case 4:
-			GenerateRandomClientIDs(queries)
-		case 5:
-			UpdateClientParameters(queries)
-		case 6:
-			DeleteAllClients(queries)
-		case 7:
-			fmt.Println("Exiting the program.")
-			return
-		default:
-			fmt.Println("Invalid choice. Please select a valid option (1-7).")
-		}
-	}
+	http.HandleFunc("/list-clients", func(w http.ResponseWriter, r *http.Request) {
+		handleHTTPMethod(w, r, "POST", handler.ListClientIDRecordsHandler)
+	})
 
+	http.HandleFunc("/generate-random-clients", func(w http.ResponseWriter, r *http.Request) {
+		handleHTTPMethod(w, r, "POST", handler.GenerateRandomClientIDsHandler)
+	})
+
+	http.HandleFunc("/update-client-parameters", func(w http.ResponseWriter, r *http.Request) {
+		handleHTTPMethod(w, r, "POST", handler.UpdateClientParametersHandler)
+	})
+
+	http.HandleFunc("/delete-all-clients", func(w http.ResponseWriter, r *http.Request) {
+		handleHTTPMethod(w, r, "POST", handler.DeleteAllClientsHandler)
+	})
+
+	fmt.Println("Starting server on :8082")
+	log.Fatal(http.ListenAndServe(":8082", nil))
 }

@@ -1,13 +1,13 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/furkanakcadogan/rate-limit/db"
@@ -17,7 +17,11 @@ import (
 	"github.com/joho/godotenv"
 )
 
-var redisAddress string // Declare the redisAddress variable
+var (
+	redisAddress string
+	redisClient  *redis.Client
+	queries      *db.Queries
+)
 
 func main() {
 	envFileLocation := "../app.env"
@@ -26,89 +30,119 @@ func main() {
 	if err := godotenv.Load(envFileLocation); err != nil {
 		log.Fatalf("Failed to load .env file: %v", err)
 	}
+
+	// Setup database connection
 	pgConnStr := "postgresql://root:secret@localhost:5432/ratelimitingdb?sslmode=disable"
 	conn, err := sql.Open("pgx", pgConnStr)
 	if err != nil {
-		log.Fatalf("Veritabanına bağlanılamadı: %v", err)
+		log.Fatalf("Failed to connect to the database: %v", err)
 	}
 	defer conn.Close()
 
-	queries := db.New(conn)
+	queries = db.New(conn)
+
 	// Get Redis address from environment variable
 	redisAddress = os.Getenv("REDIS_ADDRESS")
-	reader := bufio.NewReader(os.Stdin)
-
-	// Initialize database connection and db.Queries (Add your database connection logic here)
-	// dbConn := ...
-	// queries := db.New(dbConn)
-
-	// Ask user for action choice
-	fmt.Println("Do you want to refresh a specific ID or all Redis cache? (id/all)")
-	choice, _ := reader.ReadString('\n')
-	choice = strings.TrimSpace(choice)
-
-	// Initialize Redis client
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:     redisAddress, // Use the redisAddress variable
-		Password: "",           // No password
-		DB:       0,            // Use default DB
+	redisClient = redis.NewClient(&redis.Options{
+		Addr:     redisAddress,
+		Password: "",
+		DB:       0,
 	})
-	ctx := context.Background()
 
-	// Handle user choice
-	switch choice {
-	case "id":
-		// Refresh specific ID
-		fmt.Println("Enter the ID to refresh:")
-		id, _ := reader.ReadString('\n')
-		id = strings.TrimSpace(id)
-
-		// Call the refreshID function with the correct arguments
-		refreshID(ctx, redisClient, queries, id) // Add the queries argument
-
-	case "all":
-		// Refresh all Redis cache
-		fmt.Println("Refreshing all Redis cache...")
-		refreshAll(ctx, redisClient)
-
-	default:
-		fmt.Println("Invalid choice. Please enter 'id' or 'all'.")
+	// Setup HTTP route handlers
+	http.HandleFunc("/refresh/id", handleRefreshID)
+	http.HandleFunc("/refresh/all", handleRefreshAll)
+	httpPort := os.Getenv("REDIS_REFRESHER_HTTP_PORT")
+	if httpPort == "" {
+		httpPort = "8080" // Default port if not specified
 	}
+
+	// Start HTTP server
+	fmt.Printf("Starting server at port %s\n", httpPort)
+	log.Fatal(http.ListenAndServe(":"+httpPort, nil))
+
 }
 
-func refreshID(ctx context.Context, redisClient *redis.Client, queries *db.Queries, id string) {
-	// Veritabanından kapasite ve hız sınırı değerlerini alın
-	rateLimitData, err := queries.GetRateLimit(ctx, id)
-	if err != nil {
-		log.Printf("Error retrieving rate limit data for ID %s: %v\n", id, err)
+func handleRefreshID(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		respondWithError(w, http.StatusMethodNotAllowed, "Invalid request method")
 		return
 	}
 
-	// Anahtarlar
-	key := id // Veya belirli bir format kullanın, örneğin: fmt.Sprintf("rate_limit_%s", id)
+	var request struct {
+		ClientID string `json:"client_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	err := refreshID(context.Background(), request.ClientID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			respondWithError(w, http.StatusNotFound, "ID not found in the database")
+		} else {
+			respondWithError(w, http.StatusInternalServerError, "Internal server error")
+		}
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Refreshed Redis Cache for ID: " + request.ClientID})
+}
+
+func handleRefreshAll(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		respondWithError(w, http.StatusMethodNotAllowed, "Invalid request method")
+		return
+	}
+
+	refreshAll(context.Background())
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "All Redis cache refreshed successfully"})
+}
+
+func refreshID(ctx context.Context, clientID string) error {
+	rateLimitData, err := queries.GetRateLimit(ctx, clientID)
+	if err != nil {
+		log.Printf("Error retrieving rate limit data for Client ID %s: %v\n", clientID, err)
+		return err
+	}
+
+	key := clientID
 	lastRefillKey := fmt.Sprintf("%s_last_refill", key)
 
-	// Mevcut token sayısını ve son dolum zamanını sıfırlayın
 	_, err = redisClient.SetEX(ctx, key, int64(rateLimitData.RateLimit), time.Duration(rateLimitData.RefillInterval)*time.Second).Result()
 	if err != nil {
-		log.Printf("Error resetting token count for ID %s: %v\n", id, err)
-		return
+		log.Printf("Error resetting token count for Client ID %s: %v\n", clientID, err)
+		return err
 	}
 
 	_, err = redisClient.Set(ctx, lastRefillKey, time.Now().Unix(), 0).Result()
 	if err != nil {
-		log.Printf("Error resetting last refill time for ID %s: %v\n", id, err)
+		log.Printf("Error resetting last refill time for Client ID %s: %v\n", clientID, err)
+		return err
+	}
+
+	log.Printf("Rate limiter for Client ID %s has been refreshed successfully.\n", clientID)
+	return nil
+}
+
+func refreshAll(ctx context.Context) {
+	err := redisClient.FlushDB(ctx).Err()
+	if err != nil {
+		log.Println("Error refreshing all Redis cache:", err)
 		return
 	}
 
-	log.Printf("Rate limiter for ID %s has been refreshed successfully.\n", id)
+	log.Println("All Redis cache refreshed successfully.")
 }
 
-func refreshAll(ctx context.Context, redisClient *redis.Client) {
-	err := redisClient.FlushDB(ctx).Err()
-	if err != nil {
-		fmt.Println("Error refreshing all Redis cache:", err)
-	} else {
-		fmt.Println("All Redis cache refreshed successfully.")
-	}
+func respondWithError(w http.ResponseWriter, code int, message string) {
+	respondWithJSON(w, code, map[string]string{"error": message})
+}
+
+func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
+	response, _ := json.Marshal(payload)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	w.Write(response)
 }
