@@ -6,3 +6,24 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+  app:
+    build:
+      context: .
+      dockerfile: ./cmd/app/Dockerfile-app
+    ports:
+      - "8080:8080" # Port forwarding, gerekiyorsa değiştirin
+
+  redis_refresher:
+    build:
+      context: .
+      dockerfile: ./RedisRefresher/Dockerfile-RedisRefresher
+
+  grpc_client:
+    build:
+      context: .
+      dockerfile: ./grpcClient/Dockerfile-grpcClient
+
+  postgre_sql_operations:
+    build:
+      context: .
+      dockerfile: ./PostgreSQLOperations/Dockerfile-PostgreSQLOperations

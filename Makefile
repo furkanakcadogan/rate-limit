@@ -32,6 +32,7 @@ sqlc:
 test:
 	go test -v -cover ./...
 
-
+compose:
+	docker-compose up -d
 
 .PHONY: postgres createdb dropdb migrateup migratedown sqlc test

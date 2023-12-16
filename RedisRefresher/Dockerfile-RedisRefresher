@@ -1,0 +1,14 @@
+FROM golang:latest
+
+WORKDIR /app
+
+COPY go.mod .
+COPY go.sum .
+
+RUN go mod download
+
+COPY RedisRefresher/redisRefresher.go RedisRefresher/redisRefresher.go
+
+RUN go build -o /redisRefresher RedisRefresher/redisRefresher.go
+
+CMD ["/RedisRefresher"]

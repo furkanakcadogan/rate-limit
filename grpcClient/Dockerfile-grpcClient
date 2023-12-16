@@ -1,0 +1,14 @@
+FROM golang:latest
+
+WORKDIR /app
+
+COPY go.mod .
+COPY go.sum .
+
+RUN go mod download
+
+COPY grpcClient/grpc_client.go grpcClient/grpc_client.go
+
+RUN go build -o /grpcClient grpcClient/grpc_client.go
+
+CMD ["/grpcClient"]
