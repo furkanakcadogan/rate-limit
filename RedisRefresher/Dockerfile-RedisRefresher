@@ -1,14 +1,20 @@
+# Use the official Golang image as a parent image
 FROM golang:latest
 
+# Set the working directory in the container
 WORKDIR /app
 
-COPY go.mod .
-COPY go.sum .
+# Copy the Go Modules manifests
+COPY go.mod go.sum ./
 
+# Download Go modules
 RUN go mod download
 
-COPY RedisRefresher/redisRefresher.go RedisRefresher/redisRefresher.go
+# Copy the entire project directory (including internal packages)
+COPY . .
 
+# Build the RedisRefresher executable
 RUN go build -o /redisRefresher RedisRefresher/redisRefresher.go
 
-CMD ["/RedisRefresher"]
+# Command to run the executable
+CMD ["/redisRefresher"]

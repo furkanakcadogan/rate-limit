@@ -6,9 +6,9 @@ COPY go.mod .
 COPY go.sum .
 
 RUN go mod download
-
+COPY . .
 COPY PostgreSQLOperations/PostgreSQLOperation.go PostgreSQLOperations/PostgreSQLOperation.go
 
-RUN go build -o /sqlPrompt PostgreSQLOperations/PostgreSQLOperation.go
+RUN go build -o /PostgreSQLOperations PostgreSQLOperations/PostgreSQLOperation.go
 
 CMD ["/PostgreSQLOperations"]

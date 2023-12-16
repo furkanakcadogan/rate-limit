@@ -9,21 +9,24 @@ services:
   app:
     build:
       context: .
-      dockerfile: ./cmd/app/Dockerfile-app
-    ports:
-      - "8080:8080" # Port forwarding, gerekiyorsa değiştirin
-
+      dockerfile: ./app/Dockerfile-app
+    env_file:
+      - app.env
   redis_refresher:
     build:
       context: .
       dockerfile: ./RedisRefresher/Dockerfile-RedisRefresher
-
+    env_file:
+      - app.env
   grpc_client:
     build:
       context: .
       dockerfile: ./grpcClient/Dockerfile-grpcClient
-
+    env_file:
+      - app.env
   postgre_sql_operations:
     build:
       context: .
       dockerfile: ./PostgreSQLOperations/Dockerfile-PostgreSQLOperations
+    env_file:
+      - app.env
