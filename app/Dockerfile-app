@@ -4,20 +4,18 @@ FROM golang:latest
 # Set the working directory in the container
 WORKDIR /app
 
-# Copy the Go Modules manifests
+# Copy the Go Modules manifests from the app directory
 COPY go.mod go.sum ./
 
 # Download Go modules
 RUN go mod download
 
-# Copy the entire project directory (including internal packages)
-COPY . .
+# Copy the entire project directory from the app directory
+COPY app/ .
+COPY . . 
 
 # Build the app executable
-RUN go build -o /app/app /app/app.go
-
-# Set execute permissions for the app
-RUN chmod +x /app/app
+RUN go build -o /app/app
 
 # Command to run the executable
 CMD ["/app/app"]

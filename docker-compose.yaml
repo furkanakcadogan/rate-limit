@@ -8,10 +8,10 @@ services:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
   app:
     build:
-      context: .
+      context: .        
       dockerfile: ./app/Dockerfile-app
     env_file:
-      - app.env
+     - app.env
   redis_refresher:
     build:
       context: .

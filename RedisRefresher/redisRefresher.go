@@ -24,7 +24,7 @@ var (
 )
 
 func main() {
-	envFileLocation := "../app.env"
+	envFileLocation := "app.env"
 
 	// Load .env file
 	if err := godotenv.Load(envFileLocation); err != nil {
