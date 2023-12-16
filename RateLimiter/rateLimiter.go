@@ -301,7 +301,7 @@ func main() {
 	}()
 
 	// .env dosyasının bir üst dizininde olduğunu belirtin
-	envFileLocation := "../../app.env"
+	envFileLocation := "app.env"
 
 	// .env dosyasını yükle
 	if err := godotenv.Load(envFileLocation); err != nil {
