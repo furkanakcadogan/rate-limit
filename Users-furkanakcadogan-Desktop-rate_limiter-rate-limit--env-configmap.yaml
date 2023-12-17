@@ -1,0 +1,14 @@
+apiVersion: v1
+data:
+  DB_SOURCE: postgresql://root:secret@postgres_db:5432/ratelimitingdb?sslmode=disable
+  GO_CLIENT_HTTP_PORT: "8080"
+  GRPC_SERVER_ADDRESS: rate_limiter:50051
+  POSTGRES_DB_HTTP_PORT: "8082"
+  REDIS_ADDRESS: redis_server:6379
+  REDIS_REFRESHER_HTTP_PORT: "8081"
+kind: ConfigMap
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: grpc-client-Users-furkanakcadogan-Desktop-rate_limiter-rate-limit--env
+  name: Users-furkanakcadogan-Desktop-rate_limiter-rate-limit--env

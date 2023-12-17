@@ -7,10 +7,9 @@ services:
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     networks:
-      - rate-limiter-network
-    restart: on-failure:10
+      - rate-limiter-network 
 
-  rate_limiter:
+  rate-limiter:
     build:
       context: .
       dockerfile: ./RateLimiter/Dockerfile-RateLimiter
@@ -21,11 +20,11 @@ services:
     ports:
       - "50051:50051"
     depends_on:
-      - postgres_db
-      - redis_server
-    restart: on-failure:10
+      - postgres-db
+      - redis-server
+    
 
-  redis_refresher:
+  redis-refresher:
     build:
       context: .
       dockerfile: ./RedisRefresher/Dockerfile-RedisRefresher
@@ -36,12 +35,13 @@ services:
     ports:
       - "8081:8081"
     depends_on:
-      - postgres_db
-      - redis_server
-      - rate_limiter
-    restart: on-failure:10
+      - postgres-db
+      - redis-server
+      - rate-limiter
+   
 
-  grpc_client:
+  grpc-client:
+    image: furkanakcadogan/rate-limit:grpc-client
     build:
       context: .
       dockerfile: ./grpcClient/Dockerfile-grpcClient
@@ -51,13 +51,13 @@ services:
       - rate-limiter-network
     ports:
       - "8080:8080"
-    depends_on:
-      - rate_limiter
-      - postgres_db
-      - redis_server
-    restart: on-failure:10
+    depends_on:  
+      - rate-limiter
+      - postgres-db
+      - redis-server
+    
 
-  postgre_sql_operations:
+  postgre-sql-operations:
     build:
       context: .
       dockerfile: ./PostgreSQLOperations/Dockerfile-PostgreSQLOperations
@@ -68,10 +68,10 @@ services:
     networks:
       - rate-limiter-network
     depends_on:
-      - postgres_db
-    restart: on-failure:10
+      - postgres-db
+   
 
-  postgres_db:
+  postgres-db:
     image: postgres:latest
     environment:
       POSTGRES_USER: root
@@ -81,16 +81,15 @@ services:
       - rate-limiter-network
     ports:
       - "5432:5432"
-    restart: on-failure:10
+   
 
-  redis_server:
+  redis-server:
     image: redis:latest
     ports:
       - "6379:6379"
     networks:
       - rate-limiter-network
-    restart: on-failure:10
-
+  
 networks:
   rate-limiter-network:
     driver: bridge

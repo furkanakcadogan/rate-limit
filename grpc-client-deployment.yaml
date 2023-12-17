@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.31.2 (HEAD)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: grpc-client
+  name: grpc-client
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: grpc-client
+  strategy: {}
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.31.2 (HEAD)
+      creationTimestamp: null
+      labels:
+        io.kompose.network/rate-limit-rate-limiter-network: "true"
+        io.kompose.service: grpc-client
+    spec:
+      containers:
+        - env:
+            - name: DB_SOURCE
+              valueFrom:
+                configMapKeyRef:
+                  key: DB_SOURCE
+                  name: rate-limiter-env
+            - name: GO_CLIENT_HTTP_PORT
+              valueFrom:
+                configMapKeyRef:
+                  key: GO_CLIENT_HTTP_PORT
+                  name: rate-limiter-env
+            - name: GRPC_SERVER_ADDRESS
+              valueFrom:
+                configMapKeyRef:
+                  key: GRPC_SERVER_ADDRESS
+                  name: rate-limiter-env
+            - name: POSTGRES_DB_HTTP_PORT
+              valueFrom:
+                configMapKeyRef:
+                  key: POSTGRES_DB_HTTP_PORT
+                  name: rate-limiter-env
+            - name: REDIS_ADDRESS
+              valueFrom:
+                configMapKeyRef:
+                  key: REDIS_ADDRESS
+                  name: rate-limiter-env
+            - name: REDIS_REFRESHER_HTTP_PORT
+              valueFrom:
+                configMapKeyRef:
+                  key: REDIS_REFRESHER_HTTP_PORT
+                  name: rate-limiter-env
+          image: furkanakcadogan/rate-limit:grpc-client
+          name: grpc-client
+          ports:
+            - containerPort: 8080
+              hostPort: 8080
+              protocol: TCP
+          resources: {}
+      restartPolicy: Always
+status: {}
