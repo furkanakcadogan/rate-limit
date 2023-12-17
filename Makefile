@@ -8,7 +8,14 @@ createdb:
 dropdb:
 	docker exec -it postgres12 dropdb --username=root ratelimitingdb
 
+createdb2:
+	docker exec -it rate-limit-postgres_db-1 createdb --username=root --owner=root ratelimitingdb
 
+network:
+	docker run --network host -d rate-limit-postgres_db-1
+
+build:
+	docker-compose up --build -d
 
 migrateup:
 	migrate -path db/migration -database "postgresql://root:secret@localhost:5432/ratelimitingdb?sslmode=disable" -verbose up 
@@ -18,12 +25,9 @@ migratedown:
 redis_clear_port:
 	redis-cli shutdown
 redis_setup:
-	docker run --name rate_limiting_redis -p 6379:6379 redis
+	docker run --name rate_limiting -p 6379:6379 redis
 redis_start:
-	docker start rate_limiting_redis
-
-grpc:
-	docker run rate-limiter-app
+	docker start rate_limiting
 
 
 sqlc:

@@ -6,27 +6,91 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - rate-limiter-network
+    restart: on-failure:10
+
   rate_limiter:
     build:
-      context: .        
+      context: .
       dockerfile: ./RateLimiter/Dockerfile-RateLimiter
     env_file:
-     - app.env
+      - .env
+    networks:
+      - rate-limiter-network
+    ports:
+      - "50051:50051"
+    depends_on:
+      - postgres_db
+      - redis_server
+    restart: on-failure:10
+
   redis_refresher:
     build:
       context: .
       dockerfile: ./RedisRefresher/Dockerfile-RedisRefresher
     env_file:
-      - app.env
+      - .env
+    networks:
+      - rate-limiter-network
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres_db
+      - redis_server
+      - rate_limiter
+    restart: on-failure:10
+
   grpc_client:
     build:
       context: .
       dockerfile: ./grpcClient/Dockerfile-grpcClient
     env_file:
-      - app.env
+      - .env
+    networks:
+      - rate-limiter-network
+    ports:
+      - "8080:8080"
+    depends_on:
+      - rate_limiter
+      - postgres_db
+      - redis_server
+    restart: on-failure:10
+
   postgre_sql_operations:
     build:
       context: .
       dockerfile: ./PostgreSQLOperations/Dockerfile-PostgreSQLOperations
     env_file:
-      - app.env
+      - .env
+    ports:
+      - "8082:8082"
+    networks:
+      - rate-limiter-network
+    depends_on:
+      - postgres_db
+    restart: on-failure:10
+
+  postgres_db:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: ratelimitingdb
+    networks:
+      - rate-limiter-network
+    ports:
+      - "5432:5432"
+    restart: on-failure:10
+
+  redis_server:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    networks:
+      - rate-limiter-network
+    restart: on-failure:10
+
+networks:
+  rate-limiter-network:
+    driver: bridge

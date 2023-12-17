@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-
 	"os"
 	"time"
 
@@ -26,23 +25,22 @@ var (
 	redisAddress      string
 	pgConnStr         string
 )
+
 var (
-	isDynamicRateLimiting bool // Define isDynamicRateLimiting here
+	isDynamicRateLimiting bool
 )
+
 var (
-	// Global değişkenler CPU ve bellek kullanımını saklamak için
 	currentCPUUsage    float64
 	currentMemoryUsage float64
 )
 
-// RateLimitServer is the server that provides rate limiting.
 type RateLimitServer struct {
 	proto.UnimplementedRateLimitServiceServer
 	redisClient *redis.Client
 	db          *sql.DB
 }
 
-// NewRateLimitServer creates a new RateLimitServer.
 func NewRateLimitServer(redisClient *redis.Client, db *sql.DB) *RateLimitServer {
 	return &RateLimitServer{
 		redisClient: redisClient,
@@ -50,7 +48,6 @@ func NewRateLimitServer(redisClient *redis.Client, db *sql.DB) *RateLimitServer 
 	}
 }
 
-// CheckRateLimit implements the RateLimitService interface.
 func (s *RateLimitServer) CheckRateLimit(ctx context.Context, req *proto.RateLimitRequest) (*proto.RateLimitResponse, error) {
 	clientID := req.ClientId
 	tokensRequired := req.TokensRequired
@@ -184,53 +181,45 @@ func fetchRateLimitConfigFromPostgres(db *sql.DB, clientID string) (int64, time.
 	log.Printf("Fetched rateLimit: %d, refillInterval: %d for client ID %s\n", rateLimit, refillInterval, clientID)
 	return rateLimit, time.Duration(refillInterval) * time.Second, nil
 }
+
 func isRequestAllowed(redisClient *redis.Client, db *sql.DB, clientID string, tokensRequired int64, isDynamicRateLimiting bool) (bool, int64, error) {
 	lastRefillKey := fmt.Sprintf("%s_last_refill", clientID)
 
-	// PostgreSQL'den rate limit ve refill interval değerlerini al
 	rateLimit, refillInterval, err := fetchRateLimitConfigFromPostgres(db, clientID)
 	if err != nil {
 		return false, 0, err
 	}
 
 	if isDynamicRateLimiting {
-		// Global değişkenlerden CPU ve bellek kullanımını al
 		rateLimit = calculateNewLimits(rateLimit, currentCPUUsage, currentMemoryUsage, true)
 	}
 
-	// Rate limiter'ı başlat
 	initializeRateLimiter(redisClient, clientID, rateLimit, rateLimit, refillInterval)
 
-	// İzin kontrolü yap
 	allowed, remainingTokens := allowRequest(redisClient, clientID, lastRefillKey, tokensRequired, rateLimit, rateLimit, refillInterval)
 
 	return allowed, remainingTokens, nil
 }
 
 func getSystemLoad() (float64, float64, error) {
-	// CPU usage
 	cpuPercent, err := cpu.Percent(0, false)
 	if err != nil {
 		log.Printf("Error retrieving CPU usage: %v\n", err)
 		return 0, 0, err
 	}
 
-	// Memory usage
 	memStat, err := mem.VirtualMemory()
 	if err != nil {
 		log.Printf("Error retrieving memory usage: %v\n", err)
 		return 0, 0, err
 	}
 
-	cpuUsage := cpuPercent[0] / 100          // Convert to fractional percentage
-	memoryUsage := memStat.UsedPercent / 100 // Convert to fractional percentage
+	cpuUsage := cpuPercent[0] / 100
+	memoryUsage := memStat.UsedPercent / 100
 
 	return cpuUsage, memoryUsage, nil
 }
 
-// calculateNewLimits calculates new rate limits based on system load (CPU usage).
-// It takes the original rate limit, CPU usage, and a boolean flag as input.
-// If isDynamicRateLimitting is true, it calculates the new rate limit; otherwise, it returns the original rate limit.
 func calculateNewLimits(originalRateLimit int64, cpuUsage float64, memoryUsage float64, isDynamicRateLimitting bool) int64 {
 	if !isDynamicRateLimitting {
 		return originalRateLimit
@@ -260,6 +249,7 @@ func calculateNewLimits(originalRateLimit int64, cpuUsage float64, memoryUsage f
 	newRateLimit := float64(originalRateLimit) * multiplier
 	return int64(newRateLimit)
 }
+
 func startGRPCServer(grpcServerAddress string, redisClient *redis.Client, db *sql.DB) {
 	lis, err := net.Listen("tcp", grpcServerAddress)
 	if err != nil {
@@ -277,7 +267,7 @@ func startGRPCServer(grpcServerAddress string, redisClient *redis.Client, db *sq
 
 func main() {
 
-	isDynamicRateLimiting = true // Change this to true if needed
+	isDynamicRateLimiting = true
 
 	if isDynamicRateLimiting {
 		log.Println("Dynamic Rate Limiting is ENABLED")
@@ -294,16 +284,13 @@ func main() {
 				log.Printf("Error getting system load: %v\n", err)
 				continue
 			}
-			// Global değişkenleri güncelle
 			currentCPUUsage = cpuUsage
 			currentMemoryUsage = memoryUsage
 		}
 	}()
 
-	// .env dosyasının bir üst dizininde olduğunu belirtin
-	envFileLocation := "app.env"
+	envFileLocation := ".env"
 
-	// .env dosyasını yükle
 	if err := godotenv.Load(envFileLocation); err != nil {
 		log.Fatalf("Failed to load .env file: %v", err)
 	}
@@ -327,9 +314,7 @@ func main() {
 		log.Fatalf("Failed to ping database: %v", err)
 	}
 
-	// Start gRPC server as a Go routine
 	go startGRPCServer(grpcServerAddress, redisClient, db)
 
-	// Block main goroutine to prevent exit
 	select {}
 }

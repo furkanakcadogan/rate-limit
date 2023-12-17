@@ -37,12 +37,11 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	// Load .env file
-	envFileLocation := "app.env"
+	envFileLocation := ".env"
 	if err := godotenv.Load(envFileLocation); err != nil {
 		log.Fatalf("Failed to load .env file: %v", err)
 	}
 
-	// Read HTTP port from environment variable
 	httpPort := os.Getenv("GO_CLIENT_HTTP_PORT")
 	if httpPort == "" {
 		httpPort = "8080" // Default port if not specified
@@ -70,6 +69,7 @@ func main() {
 	// Blocking the main goroutine while other goroutines are running
 	select {}
 }
+
 func Prometheusinit() {
 	// Register metrics with Prometheus
 	prometheus.MustRegister(allowedRequests)
@@ -84,6 +84,7 @@ func startHTTPServer(port string) {
 		log.Fatalf("Failed to start metric server: %v", err)
 	}
 }
+
 func handleCheckRateLimit(client proto.RateLimitServiceClient, w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
@@ -103,14 +104,13 @@ func handleCheckRateLimit(client proto.RateLimitServiceClient, w http.ResponseWr
 		return
 	}
 
-	// Yanıtı JSON olarak hazırla ve gönder
 	var message string
 	if response.Allowed {
 		message = "Request Allowed"
-		w.WriteHeader(http.StatusOK) // 200 OK
+		w.WriteHeader(http.StatusOK)
 	} else {
 		message = "Request Rejected due to Rate Limit"
-		w.WriteHeader(http.StatusTooManyRequests) // 429 Too Many Requests
+		w.WriteHeader(http.StatusTooManyRequests)
 	}
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -130,15 +130,13 @@ func CheckRateLimit(client proto.RateLimitServiceClient, clientID string) (*prot
 		TokensRequired: tokensRequired,
 	})
 	if err != nil {
+		log.Printf("Error in CheckRateLimit: %v", err)
 		return nil, err
 	}
-
 	if response.Allowed {
 		allowedRequests.Inc()
 	} else {
 		rejectedRequests.Inc()
-		// Burada, `response` nesnesi hala geçerli ve `response.Allowed` false olduğunda
-		// HTTP yanıtı olarak kullanılabilir.
 	}
 
 	return response, nil

@@ -18,21 +18,20 @@ import (
 )
 
 var (
-	redisAddress string
-	redisClient  *redis.Client
-	queries      *db.Queries
+	redisClient *redis.Client
+	queries     *db.Queries
 )
 
 func main() {
-	envFileLocation := "app.env"
-
-	// Load .env file
+	envFileLocation := ".env"
 	if err := godotenv.Load(envFileLocation); err != nil {
 		log.Fatalf("Failed to load .env file: %v", err)
 	}
 
-	// Setup database connection
-	pgConnStr := "postgresql://root:secret@localhost:5432/ratelimitingdb?sslmode=disable"
+	pgConnStr := os.Getenv("DB_SOURCE")
+	if pgConnStr == "" {
+		log.Fatalf("Database source not provided in the environment")
+	}
 	conn, err := sql.Open("pgx", pgConnStr)
 	if err != nil {
 		log.Fatalf("Failed to connect to the database: %v", err)
@@ -41,26 +40,26 @@ func main() {
 
 	queries = db.New(conn)
 
-	// Get Redis address from environment variable
-	redisAddress = os.Getenv("REDIS_ADDRESS")
+	redisAddress := os.Getenv("REDIS_ADDRESS")
+	if redisAddress == "" {
+		log.Fatalf("Redis address not provided in the environment")
+	}
 	redisClient = redis.NewClient(&redis.Options{
 		Addr:     redisAddress,
 		Password: "",
 		DB:       0,
 	})
 
-	// Setup HTTP route handlers
-	http.HandleFunc("/refresh/id", handleRefreshID)
-	http.HandleFunc("/refresh/all", handleRefreshAll)
 	httpPort := os.Getenv("REDIS_REFRESHER_HTTP_PORT")
 	if httpPort == "" {
-		httpPort = "8080" // Default port if not specified
+		httpPort = "8081"
 	}
 
-	// Start HTTP server
+	http.HandleFunc("/refresh/id", handleRefreshID)
+	http.HandleFunc("/refresh/all", handleRefreshAll)
+
 	fmt.Printf("Starting server at port %s\n", httpPort)
 	log.Fatal(http.ListenAndServe(":"+httpPort, nil))
-
 }
 
 func handleRefreshID(w http.ResponseWriter, r *http.Request) {

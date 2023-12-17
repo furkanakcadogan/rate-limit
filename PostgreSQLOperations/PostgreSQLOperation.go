@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/furkanakcadogan/rate-limit/db"
@@ -223,7 +224,7 @@ func GenerateRandomClientIDs(queries *db.Queries, numRecords int) (string, error
 		}
 	}
 
-	return fmt.Sprintf("%d random clients generated successfully, The other random values already in database ", successfulRecords), nil
+	return fmt.Sprintf("%d random clients generated successfully, The other random values already in the database ", successfulRecords), nil
 }
 
 func isDuplicateKeyError(err error) bool {
@@ -337,10 +338,14 @@ func (h *HTTPHandler) DeleteAllClientsHandler(w http.ResponseWriter, r *http.Req
 }
 
 func main() {
-	pgConnStr := "postgresql://root:secret@localhost:5432/ratelimitingdb?sslmode=disable"
+	// Setup database connection using environment variable
+	pgConnStr := os.Getenv("DB_SOURCE")
+	if pgConnStr == "" {
+		log.Fatalf("Database source not provided in the environment")
+	}
 	conn, err := sql.Open("pgx", pgConnStr)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		log.Fatalf("Failed to connect to the database: %v", err)
 	}
 	defer conn.Close()
 
@@ -370,7 +375,13 @@ func main() {
 	http.HandleFunc("/delete-all-clients", func(w http.ResponseWriter, r *http.Request) {
 		handleHTTPMethod(w, r, "POST", handler.DeleteAllClientsHandler)
 	})
+	// Setup HTTP server port using environment variable
+	httpPort := os.Getenv("POSTGRES_DB_HTTP_PORT")
+	if httpPort == "" {
+		httpPort = "8082"
+	}
 
-	fmt.Println("Starting server on :8082")
-	log.Fatal(http.ListenAndServe(":8082", nil))
+	// Start HTTP server
+	fmt.Printf("Starting server at port %s\n", httpPort)
+	log.Fatal(http.ListenAndServe(":"+httpPort, nil))
 }
