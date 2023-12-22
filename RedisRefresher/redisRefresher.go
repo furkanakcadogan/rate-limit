@@ -7,14 +7,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/furkanakcadogan/rate-limit/db"
 	"github.com/go-redis/redis/v8"
 	_ "github.com/jackc/pgx/v4"
 	_ "github.com/jackc/pgx/v4/stdlib"
-	"github.com/joho/godotenv"
 )
 
 var (
@@ -23,12 +21,13 @@ var (
 )
 
 func main() {
-	envFileLocation := ".env"
-	if err := godotenv.Load(envFileLocation); err != nil {
-		log.Fatalf("Failed to load .env file: %v", err)
-	}
+	//envFileLocation := ".env"
+	//if err := godotenv.Load(envFileLocation); err != nil {
+	//	log.Fatalf("Failed to load .env file: %v", err)
+	//}
 
-	pgConnStr := os.Getenv("DB_SOURCE")
+	//pgConnStr := os.Getenv("DB_SOURCE")
+	pgConnStr := "postgresql://root:zNTcuDav4wU8EnZ4Wnp3@rate-limit.c5ntee3dn9xx.eu-north-1.rds.amazonaws.com:5432/ratelimitingdb?sslmode=require"
 	if pgConnStr == "" {
 		log.Fatalf("Database source not provided in the environment")
 	}
@@ -40,7 +39,7 @@ func main() {
 
 	queries = db.New(conn)
 
-	redisAddress := os.Getenv("REDIS_ADDRESS")
+	redisAddress := "rate-limit-redis.jiq88u.ng.0001.eun1.cache.amazonaws.com:6379"
 	if redisAddress == "" {
 		log.Fatalf("Redis address not provided in the environment")
 	}
@@ -50,7 +49,7 @@ func main() {
 		DB:       0,
 	})
 
-	httpPort := os.Getenv("REDIS_REFRESHER_HTTP_PORT")
+	httpPort := "8081"
 	if httpPort == "" {
 		httpPort = "8081"
 	}

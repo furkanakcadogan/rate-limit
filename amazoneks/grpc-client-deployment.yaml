@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    io.kompose.service: grpc-client
+  name: grpc-client
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: grpc-client
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        io.kompose.network/rate-limit-rate-limiter-network: "true"
+        io.kompose.service: grpc-client
+    spec:
+      containers:
+        - name: grpc-client
+          image: 029436851145.dkr.ecr.eu-north-1.amazonaws.com/rate-limit:grpc_client
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          resources: {}

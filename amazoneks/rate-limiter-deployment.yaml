@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    io.kompose.service: rate-limiter
+  name: rate-limiter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: rate-limiter
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        io.kompose.network/rate-limit-rate-limiter-network: "true"
+        io.kompose.service: rate-limiter
+    spec:
+      containers:
+        - name: rate-limiter
+          image: 029436851145.dkr.ecr.eu-north-1.amazonaws.com/rate-limit:rate_limiter
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 50051 
+              protocol: TCP
+
+          resources: {}

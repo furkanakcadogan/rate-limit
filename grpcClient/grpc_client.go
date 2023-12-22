@@ -7,11 +7,9 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/furkanakcadogan/rate-limit/proto"
-	"github.com/joho/godotenv"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
@@ -37,12 +35,13 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	// Load .env file
-	envFileLocation := ".env"
-	if err := godotenv.Load(envFileLocation); err != nil {
-		log.Fatalf("Failed to load .env file: %v", err)
-	}
+	//envFileLocation := ".env"
+	//if err := godotenv.Load(envFileLocation); err != nil {
+	//	log.Fatalf("Failed to load .env file: %v", err)
+	//}
 
-	httpPort := os.Getenv("GO_CLIENT_HTTP_PORT")
+	//httpPort := os.Getenv("GO_CLIENT_HTTP_PORT")
+	httpPort := "8080"
 	if httpPort == "" {
 		httpPort = "8080" // Default port if not specified
 	}
@@ -50,7 +49,7 @@ func main() {
 	// HTTP server
 	go startHTTPServer(httpPort)
 
-	grpcServerAddress := os.Getenv("GRPC_SERVER_ADDRESS")
+	grpcServerAddress := "aef2aedc941724991bb74e7f707bd162-592816510.eu-north-1.elb.amazonaws.com:50051"
 	conn, err := grpc.Dial(grpcServerAddress, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("Failed to connect to gRPC server: %v", err)

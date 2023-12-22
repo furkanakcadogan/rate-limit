@@ -19,7 +19,8 @@ build:
 
 migrateup:
 	migrate -path db/migration -database "postgresql://root:secret@localhost:5432/ratelimitingdb?sslmode=disable" -verbose up 
-
+migrateupaws:
+	migrate -path db/migration -database "postgresql://root:zNTcuDav4wU8EnZ4Wnp3@rate-limit.c5ntee3dn9xx.eu-north-1.rds.amazonaws.com:5432/ratelimitingdb?sslmode=require" -verbose up  
 migratedown:
 	migrate -path db/migration -database "postgresql://root:secret@localhost:5432/ratelimitingdb?sslmode=disable" -verbose down
 redis_clear_port:

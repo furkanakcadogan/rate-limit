@@ -41,7 +41,6 @@ services:
    
 
   grpc-client:
-    image: furkanakcadogan/rate-limit:grpc-client
     build:
       context: .
       dockerfile: ./grpcClient/Dockerfile-grpcClient

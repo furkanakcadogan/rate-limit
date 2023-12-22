@@ -8,7 +8,6 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/furkanakcadogan/rate-limit/db"
@@ -339,7 +338,7 @@ func (h *HTTPHandler) DeleteAllClientsHandler(w http.ResponseWriter, r *http.Req
 
 func main() {
 	// Setup database connection using environment variable
-	pgConnStr := os.Getenv("DB_SOURCE")
+	pgConnStr := "postgresql://root:zNTcuDav4wU8EnZ4Wnp3@rate-limit.c5ntee3dn9xx.eu-north-1.rds.amazonaws.com:5432/ratelimitingdb?sslmode=require"
 	if pgConnStr == "" {
 		log.Fatalf("Database source not provided in the environment")
 	}
@@ -348,10 +347,18 @@ func main() {
 		log.Fatalf("Failed to connect to the database: %v", err)
 	}
 	defer conn.Close()
+	// Ping the database to check for a successful connection
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err = conn.PingContext(ctx); err != nil {
+		log.Fatalf("Failed to ping the database: %v", err)
+	}
 
 	queries := db.New(conn)
 	handler := NewHTTPHandler(queries)
 
+	// HTTP handlers setup
 	http.HandleFunc("/insert", func(w http.ResponseWriter, r *http.Request) {
 		handleHTTPMethod(w, r, "POST", handler.InsertNewClientHandler)
 	})
@@ -375,8 +382,9 @@ func main() {
 	http.HandleFunc("/delete-all-clients", func(w http.ResponseWriter, r *http.Request) {
 		handleHTTPMethod(w, r, "POST", handler.DeleteAllClientsHandler)
 	})
-	// Setup HTTP server port using environment variable
-	httpPort := os.Getenv("POSTGRES_DB_HTTP_PORT")
+
+	// Setup HTTP server port
+	httpPort := "8082"
 	if httpPort == "" {
 		httpPort = "8082"
 	}

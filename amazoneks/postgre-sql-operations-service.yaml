@@ -4,16 +4,14 @@ metadata:
   annotations:
     kompose.cmd: kompose convert
     kompose.version: 1.31.2 (HEAD)
- 
   labels:
     io.kompose.service: postgre-sql-operations
-  name: postgre_sql_operations
+  name: postgre-sql-operations
 spec:
-  type: NodePort
+  type: LoadBalancer
   ports:
     - name: "8082"
       port: 8082
       targetPort: 8082
-      nodePort: 30010 # Bu port numarası Kubernetes tarafından otomatik olarak atanabilir veya manuel olarak belirlenebilir.
   selector:
     io.kompose.service: postgre-sql-operations

@@ -7,11 +7,9 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"os"
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/mem"
@@ -264,6 +262,24 @@ func startGRPCServer(grpcServerAddress string, redisClient *redis.Client, db *sq
 		log.Fatalf("Failed to serve gRPC server: %v", err)
 	}
 }
+func pingServer(server string) bool {
+	timeout := 2 * time.Second
+	_, err := net.DialTimeout("tcp", server, timeout)
+	if err != nil {
+		log.Printf("Failed to connect to server %s: %v\n", server, err)
+		return false
+	}
+	log.Printf("Successfully pinged server %s\n", server)
+	return true
+}
+
+func pingPostgresDB(ctx context.Context, db *sql.DB) {
+	if err := db.PingContext(ctx); err != nil {
+		log.Printf("Failed to ping PostgreSQL database: %v\n", err)
+	} else {
+		log.Println("Successfully pinged PostgreSQL database")
+	}
+}
 
 func main() {
 
@@ -289,15 +305,11 @@ func main() {
 		}
 	}()
 
-	envFileLocation := ".env"
+	grpcServerAddress = ":50051"
 
-	if err := godotenv.Load(envFileLocation); err != nil {
-		log.Fatalf("Failed to load .env file: %v", err)
-	}
+	redisAddress = "rate-limit-redis.jiq88u.ng.0001.eun1.cache.amazonaws.com:6379"
+	pgConnStr = "postgresql://root:zNTcuDav4wU8EnZ4Wnp3@rate-limit.c5ntee3dn9xx.eu-north-1.rds.amazonaws.com:5432/ratelimitingdb?sslmode=require"
 
-	grpcServerAddress = os.Getenv("GRPC_SERVER_ADDRESS")
-	redisAddress = os.Getenv("REDIS_ADDRESS")
-	pgConnStr = os.Getenv("DB_SOURCE")
 	redisClient := redis.NewClient(&redis.Options{
 		Addr: redisAddress,
 		DB:   0,
@@ -310,9 +322,11 @@ func main() {
 	}
 	defer db.Close()
 
-	if err := db.Ping(); err != nil {
-		log.Fatalf("Failed to ping database: %v", err)
-	}
+	pingServer(redisAddress)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	pingPostgresDB(ctx, db)
 
 	go startGRPCServer(grpcServerAddress, redisClient, db)
 

@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    io.kompose.service: postgre-sql-operations
+  name: postgre-sql-operations
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: postgre-sql-operations
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        io.kompose.network/rate-limit-rate-limiter-network: "true"
+        io.kompose.service: postgre-sql-operations
+    spec:
+      containers:
+        - name: postgre-sql-operations
+          image: 029436851145.dkr.ecr.eu-north-1.amazonaws.com/rate-limit:postgre_sql_operations@sha256:ffa87072c8ea8fa5608890696604c5b8875a3f07b1e4d22f937fe52caf6fb185
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8082
+              protocol: TCP
+          env:
+            - name: DB_SOURCE
+              value: "postgresql://root:zNTcuDav4wU8EnZ4Wnp3@rate-limit.c5ntee3dn9xx.eu-north-1.rds.amazonaws.com:5432/ratelimitingdb?sslmode=require"
+            - name: POSTGRES_DB_HTTP_PORT
+              value: "8082"
+          resources: {}

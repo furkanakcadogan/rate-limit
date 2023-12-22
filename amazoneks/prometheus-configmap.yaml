@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      scrape_timeout: 15s
+    scrape_configs:
+      - job_name: 'rate-limiter'
+        static_configs:
+          - targets: ['a3e7a72a2c6384ef29c570535347046b-226565400.eu-north-1.elb.amazonaws.com:8080']
+        tls_config:
+          insecure_skip_verify: true
