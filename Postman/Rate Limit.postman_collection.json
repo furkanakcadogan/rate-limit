@@ -1,0 +1,298 @@
+{
+	"info": {
+		"_postman_id": "4d8907b3-40c3-4596-8905-2c5766fbc72c",
+		"name": "Rate Limit",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "31634655"
+	},
+	"item": [
+		{
+			"name": "Database Operations",
+			"item": [
+				{
+					"name": "Deleting ClientID",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"ClientID\": \"Client6\"\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://a83b68f0afd5d41199903ab5cddb10fa-266379402.eu-north-1.elb.amazonaws.com:8082/delete",
+							"protocol": "http",
+							"host": [
+								"a83b68f0afd5d41199903ab5cddb10fa-266379402",
+								"eu-north-1",
+								"elb",
+								"amazonaws",
+								"com"
+							],
+							"port": "8082",
+							"path": [
+								"delete"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Inserting ClientID",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"ClientID\": \"Client34\",\n  \"RateLimit\": 7,\n  \"RefillInterval\": 60\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://a83b68f0afd5d41199903ab5cddb10fa-266379402.eu-north-1.elb.amazonaws.com:8082/insert",
+							"protocol": "http",
+							"host": [
+								"a83b68f0afd5d41199903ab5cddb10fa-266379402",
+								"eu-north-1",
+								"elb",
+								"amazonaws",
+								"com"
+							],
+							"port": "8082",
+							"path": [
+								"insert"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List All ClientIDs",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"limit\": 50,\n  \"offset\": 0\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://a83b68f0afd5d41199903ab5cddb10fa-266379402.eu-north-1.elb.amazonaws.com:8082/list-clients",
+							"protocol": "http",
+							"host": [
+								"a83b68f0afd5d41199903ab5cddb10fa-266379402",
+								"eu-north-1",
+								"elb",
+								"amazonaws",
+								"com"
+							],
+							"port": "8082",
+							"path": [
+								"list-clients"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Generate Random ClientIDs",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"numRecords\": 100\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://a83b68f0afd5d41199903ab5cddb10fa-266379402.eu-north-1.elb.amazonaws.com:8082/generate-random-clients",
+							"protocol": "http",
+							"host": [
+								"a83b68f0afd5d41199903ab5cddb10fa-266379402",
+								"eu-north-1",
+								"elb",
+								"amazonaws",
+								"com"
+							],
+							"port": "8082",
+							"path": [
+								"generate-random-clients"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update ClientID Parameters",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"clientId\": \"Client67\",\n  \"newRateLimit\": 200,\n  \"newRefillInterval\": 30\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://a83b68f0afd5d41199903ab5cddb10fa-266379402.eu-north-1.elb.amazonaws.com:8082/update-client-parameters",
+							"protocol": "http",
+							"host": [
+								"a83b68f0afd5d41199903ab5cddb10fa-266379402",
+								"eu-north-1",
+								"elb",
+								"amazonaws",
+								"com"
+							],
+							"port": "8082",
+							"path": [
+								"update-client-parameters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete All Database",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "http://a83b68f0afd5d41199903ab5cddb10fa-266379402.eu-north-1.elb.amazonaws.com:8082/delete-all-clients",
+							"protocol": "http",
+							"host": [
+								"a83b68f0afd5d41199903ab5cddb10fa-266379402",
+								"eu-north-1",
+								"elb",
+								"amazonaws",
+								"com"
+							],
+							"port": "8082",
+							"path": [
+								"delete-all-clients"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Refresh Redis Cache",
+			"item": [
+				{
+					"name": "Refresh with Client ID Number",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"client_id\": \"Client34\"\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://a5d7940a0c304437dbbafdc4115bbad5-1162330489.eu-north-1.elb.amazonaws.com:8081/refresh/id",
+							"protocol": "http",
+							"host": [
+								"a5d7940a0c304437dbbafdc4115bbad5-1162330489",
+								"eu-north-1",
+								"elb",
+								"amazonaws",
+								"com"
+							],
+							"port": "8081",
+							"path": [
+								"refresh",
+								"id"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh All Cache",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "http://a5d7940a0c304437dbbafdc4115bbad5-1162330489.eu-north-1.elb.amazonaws.com:8081/refresh/all",
+							"protocol": "http",
+							"host": [
+								"a5d7940a0c304437dbbafdc4115bbad5-1162330489",
+								"eu-north-1",
+								"elb",
+								"amazonaws",
+								"com"
+							],
+							"port": "8081",
+							"path": [
+								"refresh",
+								"all"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Check Rate Limit",
+			"item": [
+				{
+					"name": "Check Rate Limit with ClientID",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"client_id\": \"Client52\"\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://a3e7a72a2c6384ef29c570535347046b-226565400.eu-north-1.elb.amazonaws.com:8080/check-rate-limit",
+							"protocol": "http",
+							"host": [
+								"a3e7a72a2c6384ef29c570535347046b-226565400",
+								"eu-north-1",
+								"elb",
+								"amazonaws",
+								"com"
+							],
+							"port": "8080",
+							"path": [
+								"check-rate-limit"
+							]
+						},
+						"description": "check rate limit"
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
