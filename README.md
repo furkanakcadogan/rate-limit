@@ -304,8 +304,28 @@ Ensure you have Postman installed on your computer and have a Postman account. Y
 #### 3.1. Check Rate Limit with ClientID
 
 - Checks the rate limit for a specific `ClientID`.
+- 
+# Prometheus Monitoring for RateLimiter Service
 
+## Quick Guide
 
+### Accessing Prometheus
+Access the Prometheus instance for monitoring the **RateLimiter** service at: [Prometheus Monitoring](http://ab252b21c95f44ceaa26907b07443360-683737427.eu-north-1.elb.amazonaws.com:9090)
+
+### Monitoring Key Metrics
+Within the Prometheus interface, you can monitor two critical metrics for the RateLimiter service:
+
+1. **`allowed_requests`**: Tracks the number of requests that have been allowed by the rate limiting service.
+2. **`rejected_requests`**: Monitors the number of requests that have been rejected due to rate limiting.
+
+### Viewing Metrics
+To view these metrics:
+
+1. Go to the [Prometheus web interface](http://ab252b21c95f44ceaa26907b07443360-683737427.eu-north-1.elb.amazonaws.com:9090).
+2. In the query bar, enter either `allowed_requests` or `rejected_requests`.
+3. Execute the query to view the metric's time series data.
+
+This setup provides essential insights into how the RateLimiter service is performing and helps in identifying trends in request handling.
 
 
 
